@@ -20,21 +20,12 @@ import wave
 import librosa
 import numpy as np
 import scipy
+import keras
 from tqdm import tqdm_notebook
 from sklearn.cross_validation import StratifiedKFold
 from scipy.io import wavfile
 from keras import losses, models, optimizers
 from keras.activations import relu, softmax
-from keras.callbacks import (EarlyStopping, LearningRateScheduler,
-                             ModelCheckpoint, TensorBoard, ReduceLROnPlateau)
-from keras.layers import (Convolution1D, Dense, Dropout, GlobalAveragePooling1D,
-                          GlobalMaxPool1D, Input, MaxPool1D, concatenate)
-from keras.utils import Sequence, to_categorical
-
-COMPLETE_RUN = True
-
-train = pd.read_csv("./train.csv")
-test = pd.read_csv("./sample_submission.csv")
 
 
 class Config(object):
@@ -58,7 +49,7 @@ class Config(object):
             self.dim = (self.audio_length, 1)
 
 
-class DataGenerator(Sequence):
+class DataGenerator(keras.utils.Sequence):
     def __init__(self, config, data_dir, list_IDs, labels=None,
                  batch_size=64, preprocessing_fn=lambda x: x):
         self.config = config
@@ -122,149 +113,150 @@ class DataGenerator(Sequence):
             y = np.empty(cur_batch_size, dtype=int)
             for i, ID in enumerate(list_IDs_temp):
                 y[i] = self.labels[ID]
-            return X, to_categorical(y, num_classes=self.config.n_classes)
+            return X, keras.utils.to_categorical(y, num_classes=self.config.n_classes)
         else:
             return X
 
+class SoundClassifier(object):
+    def __init__(self):
+        pass
 
-def audio_norm(data):
-    max_data = np.max(data)
-    min_data = np.min(data)
-    data = (data - min_data) / (max_data - min_data + 1e-6)
-    return data - 0.5
+    def audio_norm(self, data):
+        max_data = np.max(data)
+        min_data = np.min(data)
+        data = (data - min_data) / (max_data - min_data + 1e-6)
+        return data - 0.5
+
+    def get_1d_conv_model(self, config):
+        dropout_prob = 0.1
+        nclass = config.n_classes
+        input_length = config.audio_length
+
+        layer_group_1_kernel = 9
+        layer_group_1_n_convs = 16
+        layer_group_1_max_pool = 16
+        layer_group_2_kernel = 3
+        layer_group_2_n_convs = 32
+        layer_group_2_max_pool = 4
+        layer_group_3_kernel = 3
+        layer_group_3_n_convs = 32
+        layer_group_3_max_pool = 4
+        layer_group_4_kernel = 3
+        layer_group_4_n_convs = 256
+        dense_1_n_hidden = 64
+        dense_2_n_hidden = 1024
+
+        inp = keras.layers.Input(shape=(input_length, 1))
+        x = keras.layers.Convolution1D(layer_group_1_n_convs, layer_group_1_kernel, activation=relu, padding="valid")(inp)
+        x = keras.layers.Convolution1D(layer_group_1_n_convs, layer_group_1_kernel, activation=relu, padding="valid")(x)
+        x = keras.layers.MaxPool1D(layer_group_1_max_pool)(x)
+        x = keras.layers.Dropout(rate=dropout_prob)(x)
+
+        x = keras.layers.Convolution1D(layer_group_2_n_convs, layer_group_2_kernel, activation=relu, padding="valid")(x)
+        x = keras.layers.Convolution1D(layer_group_2_n_convs, layer_group_2_kernel, activation=relu, padding="valid")(x)
+        x = keras.layers.MaxPool1D(layer_group_2_max_pool)(x)
+        x = keras.layers.Dropout(rate=dropout_prob)(x)
+
+        x = keras.layers.Convolution1D(layer_group_3_n_convs, layer_group_3_kernel, activation=relu, padding="valid")(x)
+        x = keras.layers.Convolution1D(layer_group_3_n_convs, layer_group_3_kernel, activation=relu, padding="valid")(x)
+        x = keras.layers.MaxPool1D(layer_group_3_max_pool)(x)
+        x = keras.layers.Dropout(rate=dropout_prob)(x)
+
+        x = keras.layers.Convolution1D(layer_group_4_n_convs, layer_group_4_kernel, activation=relu, padding="valid")(x)
+        x = keras.layers.Convolution1D(layer_group_4_n_convs, layer_group_4_kernel, activation=relu, padding="valid")(x)
+        x = keras.layers.GlobalMaxPool1D()(x)
+        x = keras.layers.Dropout(rate=0.2)(x)
+
+        x = keras.layers.Dense(dense_1_n_hidden, activation=relu)(x)
+        x = keras.layers.Dense(dense_2_n_hidden, activation=relu)(x)
+        out = keras.layers.Dense(nclass, activation=softmax)(x)
+
+        model = models.Model(inputs=inp, outputs=out)
+        opt = optimizers.Adam(config.learning_rate)
+
+        model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
+        return model
+
+    def train(self):
+        train = pd.read_csv("./train.csv")
+        test = pd.read_csv("./sample_submission.csv")
+        LABELS = list(train.label.unique())
+        label_idx = {label: i for i, label in enumerate(LABELS)}
+        train.set_index("fname", inplace=True)
+        test.set_index("fname", inplace=True)
+        train["label_idx"] = train.label.apply(lambda x: label_idx[x])
+
+        config = Config(sampling_rate=16000, audio_duration=2, n_folds=10, learning_rate=0.001)
+
+        PREDICTION_FOLDER = "predictions_1d_conv"
+        if not os.path.exists(PREDICTION_FOLDER):
+            os.mkdir(PREDICTION_FOLDER)
+        if os.path.exists('logs/' + PREDICTION_FOLDER):
+            shutil.rmtree('logs/' + PREDICTION_FOLDER)
+
+        skf = StratifiedKFold(train.label_idx, n_folds=config.n_folds)
+
+        for i, (train_split, val_split) in enumerate(skf):
+            train_set = train.iloc[train_split]
+            val_set = train.iloc[val_split]
+            checkpoint = keras.callbacks.ModelCheckpoint('best_%d.h5' % i, monitor='val_loss', verbose=1, save_best_only=True)
+            early = keras.callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=5)
+            tb = keras.callbacks.TensorBoard(log_dir='./logs/' + PREDICTION_FOLDER + '/fold_%d' % i, write_graph=True)
+
+            callbacks_list = [checkpoint, early, tb]
+            print("Fold: ", i)
+            print("#" * 50)
+
+            model = self.get_1d_conv_model(config)
+            train_generator = DataGenerator(config, './audio_train/', train_set.index,
+                                            train_set.label_idx, batch_size=64,
+                                            preprocessing_fn=self.audio_norm)
+            val_generator = DataGenerator(config, './audio_train/', val_set.index,
+                                          val_set.label_idx, batch_size=64,
+                                          preprocessing_fn=self.audio_norm)
+            history = model.fit_generator(train_generator, callbacks=callbacks_list, validation_data=val_generator,
+                                          epochs=config.max_epochs, use_multiprocessing=True, workers=6, max_queue_size=20)
+
+            model.load_weights('best_%d.h5' % i)
+
+            # Save train predictions
+            train_generator = DataGenerator(config, './audio_train/', train.index, batch_size=128,
+                                            preprocessing_fn=self.audio_norm)
+            predictions = model.predict_generator(train_generator, use_multiprocessing=True,
+                                                  workers=6, max_queue_size=20, verbose=1)
+            np.save(PREDICTION_FOLDER + "/train_predictions_%d.npy" % i, predictions)
+
+            # Save test predictions
+            # change batch size to 1, otherwise we have missing results.
+            test_generator = DataGenerator(config, './audio_test/', test.index, batch_size=1,
+                                           preprocessing_fn=self.audio_norm)
+            predictions = model.predict_generator(test_generator, use_multiprocessing=True,
+                                                  workers=6, max_queue_size=20, verbose=1)
+            np.save(PREDICTION_FOLDER + "/test_predictions_%d.npy" % i, predictions)
+
+            # Make a submission file
+            top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]]
+            predicted_labels = [' '.join(list(x)) for x in top_3]
+            test['label'] = predicted_labels
+            test[['label']].to_csv(PREDICTION_FOLDER + "/predictions_%d.csv" % i)
+
+        pred_list = []
+        for i in range(config.n_folds):
+            pred_list.append(np.load("./predictions_1d_conv/test_predictions_%d.npy" % i))
+        prediction = np.ones_like(pred_list[0])
+        for pred in pred_list:
+            prediction = prediction * pred
+        prediction = prediction ** (1. / len(pred_list))
+        # Make a submission file
+        top_3 = np.array(LABELS)[np.argsort(-prediction, axis=1)[:, :3]]
+        predicted_labels = [' '.join(list(x)) for x in top_3]
+        test = pd.read_csv('./sample_submission.csv')
+        print len(predicted_labels)
+        print test.info()
+        test['label'] = predicted_labels
+        test[['fname', 'label']].to_csv("1d_conv_ensembled_submission.csv", index=False)
 
 
-def get_1d_dummy_model(config):
-    nclass = config.n_classes
-    input_length = config.audio_length
-
-    inp = Input(shape=(input_length, 1))
-    x = GlobalMaxPool1D()(inp)
-    out = Dense(nclass, activation=softmax)(x)
-
-    model = models.Model(inputs=inp, outputs=out)
-    opt = optimizers.Adam(config.learning_rate)
-
-    model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
-    return model
-
-
-def get_1d_conv_model(config):
-    nclass = config.n_classes
-    input_length = config.audio_length
-
-    inp = Input(shape=(input_length, 1))
-    x = Convolution1D(16, 9, activation=relu, padding="valid")(inp)
-    x = Convolution1D(16, 9, activation=relu, padding="valid")(x)
-    x = MaxPool1D(16)(x)
-    x = Dropout(rate=0.1)(x)
-
-    x = Convolution1D(32, 3, activation=relu, padding="valid")(x)
-    x = Convolution1D(32, 3, activation=relu, padding="valid")(x)
-    x = MaxPool1D(4)(x)
-    x = Dropout(rate=0.1)(x)
-
-    x = Convolution1D(32, 3, activation=relu, padding="valid")(x)
-    x = Convolution1D(32, 3, activation=relu, padding="valid")(x)
-    x = MaxPool1D(4)(x)
-    x = Dropout(rate=0.1)(x)
-
-    x = Convolution1D(256, 3, activation=relu, padding="valid")(x)
-    x = Convolution1D(256, 3, activation=relu, padding="valid")(x)
-    x = GlobalMaxPool1D()(x)
-    x = Dropout(rate=0.2)(x)
-
-    x = Dense(64, activation=relu)(x)
-    x = Dense(1028, activation=relu)(x)
-    out = Dense(nclass, activation=softmax)(x)
-
-    model = models.Model(inputs=inp, outputs=out)
-    opt = optimizers.Adam(config.learning_rate)
-
-    model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
-    return model
-
-
-LABELS = list(train.label.unique())
-label_idx = {label: i for i, label in enumerate(LABELS)}
-train.set_index("fname", inplace=True)
-test.set_index("fname", inplace=True)
-train["label_idx"] = train.label.apply(lambda x: label_idx[x])
-if not COMPLETE_RUN:
-    train = train[:2000]
-    test = test[:2000]
-
-config = Config(sampling_rate=16000, audio_duration=2, n_folds=10, learning_rate=0.001)
-if not COMPLETE_RUN:
-    config = Config(sampling_rate=100, audio_duration=1, n_folds=2, max_epochs=1)
-
-PREDICTION_FOLDER = "predictions_1d_conv"
-if not os.path.exists(PREDICTION_FOLDER):
-    os.mkdir(PREDICTION_FOLDER)
-if os.path.exists('logs/' + PREDICTION_FOLDER):
-    shutil.rmtree('logs/' + PREDICTION_FOLDER)
-
-skf = StratifiedKFold(train.label_idx, n_folds=config.n_folds)
-
-for i, (train_split, val_split) in enumerate(skf):
-    train_set = train.iloc[train_split]
-    val_set = train.iloc[val_split]
-    checkpoint = ModelCheckpoint('best_%d.h5' % i, monitor='val_loss', verbose=1, save_best_only=True)
-    early = EarlyStopping(monitor="val_loss", mode="min", patience=5)
-    tb = TensorBoard(log_dir='./logs/' + PREDICTION_FOLDER + '/fold_%d' % i, write_graph=True)
-
-    callbacks_list = [checkpoint, early, tb]
-    print("Fold: ", i)
-    print("#" * 50)
-    if COMPLETE_RUN:
-        model = get_1d_conv_model(config)
-    else:
-        model = get_1d_dummy_model(config)
-
-    train_generator = DataGenerator(config, './audio_train/', train_set.index,
-                                    train_set.label_idx, batch_size=64,
-                                    preprocessing_fn=audio_norm)
-    val_generator = DataGenerator(config, './audio_train/', val_set.index,
-                                  val_set.label_idx, batch_size=64,
-                                  preprocessing_fn=audio_norm)
-    history = model.fit_generator(train_generator, callbacks=callbacks_list, validation_data=val_generator,
-                                  epochs=config.max_epochs, use_multiprocessing=True, workers=6, max_queue_size=20)
-
-    model.load_weights('best_%d.h5' % i)
-
-    # Save train predictions
-    train_generator = DataGenerator(config, './audio_train/', train.index, batch_size=128,
-                                    preprocessing_fn=audio_norm)
-    predictions = model.predict_generator(train_generator, use_multiprocessing=True,
-                                          workers=6, max_queue_size=20, verbose=1)
-    np.save(PREDICTION_FOLDER + "/train_predictions_%d.npy" % i, predictions)
-
-    # Save test predictions
-    # change batch size to 1, otherwise we have missing results.
-    test_generator = DataGenerator(config, './audio_test/', test.index, batch_size=1,
-                                   preprocessing_fn=audio_norm)
-    predictions = model.predict_generator(test_generator, use_multiprocessing=True,
-                                          workers=6, max_queue_size=20, verbose=1)
-    np.save(PREDICTION_FOLDER + "/test_predictions_%d.npy" % i, predictions)
-
-    # Make a submission file
-    top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]]
-    predicted_labels = [' '.join(list(x)) for x in top_3]
-    test['label'] = predicted_labels
-    test[['label']].to_csv(PREDICTION_FOLDER + "/predictions_%d.csv" % i)
-
-pred_list = []
-for i in range(config.n_folds):
-    pred_list.append(np.load("./predictions_1d_conv/test_predictions_%d.npy" % i))
-prediction = np.ones_like(pred_list[0])
-for pred in pred_list:
-    prediction = prediction * pred
-prediction = prediction ** (1. / len(pred_list))
-# Make a submission file
-top_3 = np.array(LABELS)[np.argsort(-prediction, axis=1)[:, :3]]
-predicted_labels = [' '.join(list(x)) for x in top_3]
-test = pd.read_csv('./sample_submission.csv')
-print len(predicted_labels)
-print test.info()
-test['label'] = predicted_labels
-test[['fname', 'label']].to_csv("1d_conv_ensembled_submission.csv", index=False)
+if __name__ == "__main__":
+    sc = SoundClassifier()
+    sc.train()
