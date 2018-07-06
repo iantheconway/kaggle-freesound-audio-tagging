@@ -208,10 +208,10 @@ class SoundClassifier(object):
 
             model = self.get_1d_conv_model(config)
             train_generator = DataGenerator(config, './audio_train/', train_set.index,
-                                            train_set.label_idx, batch_size=64,
+                                            train_set.label_idx, batch_size=8,
                                             preprocessing_fn=self.audio_norm)
             val_generator = DataGenerator(config, './audio_train/', val_set.index,
-                                          val_set.label_idx, batch_size=64,
+                                          val_set.label_idx, batch_size=8,
                                           preprocessing_fn=self.audio_norm)
             history = model.fit_generator(train_generator, callbacks=callbacks_list, validation_data=val_generator,
                                           epochs=config.max_epochs, use_multiprocessing=True, workers=6,
