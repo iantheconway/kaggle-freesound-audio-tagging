@@ -2,30 +2,26 @@
 https://www.kaggle.com/c/freesound-audio-tagging.
 Based on the notebook posed by Zafar:
 https://www.kaggle.com/fizzbuzz/beginner-s-guide-to-audio-data/notebook
+Thanks Zafar!
 """
-
-import numpy as np
-
-np.random.seed(1001)
 
 import os
 import shutil
-
-import IPython
-import matplotlib
-import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
-import wave
 import librosa
 import numpy as np
-import scipy
 import keras
-from tqdm import tqdm_notebook
+import GPyOpt
 from sklearn.cross_validation import StratifiedKFold
-from scipy.io import wavfile
 from keras import losses, models, optimizers
 from keras.activations import relu, softmax
+
+np.random.seed(1001)
+
+PARAMS = ["filter_1_width", "filter_1_height", "filter_2_width", "filter_2_height", "learning_rate", "n_filters_conv1",
+          "n_filters_conv2", "n_hidden_dense_1", "batch_size"]
+INT_PARAMS = ["filter_1_width", "filter_1_height", "filter_2_width", "filter_2_height", "n_filters_conv1",
+              "n_filters_conv2", "n_hidden_dense_1", "batch_size"]
 
 
 class Config(object):
@@ -117,6 +113,7 @@ class DataGenerator(keras.utils.Sequence):
         else:
             return X
 
+
 class SoundClassifier(object):
     def __init__(self):
         pass
@@ -128,10 +125,10 @@ class SoundClassifier(object):
         return data - 0.5
 
     def get_1d_conv_model(self, config):
-        dropout_prob = 0.1
         nclass = config.n_classes
         input_length = config.audio_length
 
+        dropout_prob = 0.1
         layer_group_1_kernel = 9
         layer_group_1_n_convs = 16
         layer_group_1_max_pool = 16
@@ -147,7 +144,8 @@ class SoundClassifier(object):
         dense_2_n_hidden = 1024
 
         inp = keras.layers.Input(shape=(input_length, 1))
-        x = keras.layers.Convolution1D(layer_group_1_n_convs, layer_group_1_kernel, activation=relu, padding="valid")(inp)
+        x = keras.layers.Convolution1D(layer_group_1_n_convs, layer_group_1_kernel, activation=relu, padding="valid")(
+            inp)
         x = keras.layers.Convolution1D(layer_group_1_n_convs, layer_group_1_kernel, activation=relu, padding="valid")(x)
         x = keras.layers.MaxPool1D(layer_group_1_max_pool)(x)
         x = keras.layers.Dropout(rate=dropout_prob)(x)
@@ -199,7 +197,8 @@ class SoundClassifier(object):
         for i, (train_split, val_split) in enumerate(skf):
             train_set = train.iloc[train_split]
             val_set = train.iloc[val_split]
-            checkpoint = keras.callbacks.ModelCheckpoint('best_%d.h5' % i, monitor='val_loss', verbose=1, save_best_only=True)
+            checkpoint = keras.callbacks.ModelCheckpoint('best_%d.h5' % i, monitor='val_loss', verbose=1,
+                                                         save_best_only=True)
             early = keras.callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=5)
             tb = keras.callbacks.TensorBoard(log_dir='./logs/' + PREDICTION_FOLDER + '/fold_%d' % i, write_graph=True)
 
@@ -215,7 +214,8 @@ class SoundClassifier(object):
                                           val_set.label_idx, batch_size=64,
                                           preprocessing_fn=self.audio_norm)
             history = model.fit_generator(train_generator, callbacks=callbacks_list, validation_data=val_generator,
-                                          epochs=config.max_epochs, use_multiprocessing=True, workers=6, max_queue_size=20)
+                                          epochs=config.max_epochs, use_multiprocessing=True, workers=6,
+                                          max_queue_size=100)
 
             model.load_weights('best_%d.h5' % i)
 
@@ -223,7 +223,7 @@ class SoundClassifier(object):
             train_generator = DataGenerator(config, './audio_train/', train.index, batch_size=128,
                                             preprocessing_fn=self.audio_norm)
             predictions = model.predict_generator(train_generator, use_multiprocessing=True,
-                                                  workers=6, max_queue_size=20, verbose=1)
+                                                  workers=6, max_queue_size=100, verbose=1)
             np.save(PREDICTION_FOLDER + "/train_predictions_%d.npy" % i, predictions)
 
             # Save test predictions
@@ -255,6 +255,41 @@ class SoundClassifier(object):
         print test.info()
         test['label'] = predicted_labels
         test[['fname', 'label']].to_csv("1d_conv_ensembled_submission.csv", index=False)
+
+
+def gpyopt_helper(x):
+    """Objective function for GPyOpt.
+    args:
+        x: a 2D numpy array containing hyperparameters for the current acquisition
+    returns:
+        Error: The best test error for the training run."""
+    params = {}
+    for param, value in zip(PARAMS, x[0]):
+        if param in INT_PARAMS:
+            value = int(value)
+        params[param] = value
+    sc = SoundClassifier(**params)
+    sc.train(5000)
+    # Convert accuracy to error
+    error = 1 - sc.best_accuracy
+    return np.array([[error]])
+
+
+def bayes_opt():
+    """Run bayesian optimization on the MNIST Classifier using GPyOpt"""
+    bounds = [{'name': 'filter_1_width', 'type': 'discrete', 'domain': range(3, 7)},
+              {'name': 'filter_1_height', 'type': 'discrete', 'domain': range(3, 7)},
+              {'name': 'filter_2_width', 'type': 'discrete', 'domain': range(3, 7)},
+              {'name': 'filter_2_height', 'type': 'discrete', 'domain': range(3, 7)},
+              {'name': 'learning_rate', 'type': 'continuous', 'domain': (0.000001, 0.1)},
+              {'name': 'n_filters_conv1', 'type': 'discrete', 'domain': range(32, 128)},
+              {'name': 'n_filters_conv2', 'type': 'discrete', 'domain': range(32, 128)},
+              {'name': 'n_hidden_dense_1', 'type': 'discrete', 'domain': range(512, 1024)},
+              {'name': 'batch_size', 'type': 'discrete', 'domain': range(32, 512)},
+              ]
+    myProblem = GPyOpt.methods.BayesianOptimization(gpyopt_helper, bounds)
+    myProblem.run_optimization(100)
+    myProblem.save_evaluations("ev_file")
 
 
 if __name__ == "__main__":
