@@ -220,7 +220,7 @@ class SoundClassifier(object):
             model.load_weights('best_%d.h5' % i)
 
             # Save train predictions
-            train_generator = DataGenerator(config, './audio_train/', train.index, batch_size=128,
+            train_generator = DataGenerator(config, './audio_train/', train.index, batch_size=8,
                                             preprocessing_fn=self.audio_norm)
             predictions = model.predict_generator(train_generator, use_multiprocessing=True,
                                                   workers=6, max_queue_size=100, verbose=1)
