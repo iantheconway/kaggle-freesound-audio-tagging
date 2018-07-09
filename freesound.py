@@ -18,11 +18,6 @@ from keras.activations import relu, softmax
 
 np.random.seed(1001)
 
-PARAMS = ["filter_1_width", "filter_1_height", "filter_2_width", "filter_2_height", "learning_rate", "n_filters_conv1",
-          "n_filters_conv2", "n_hidden_dense_1", "batch_size"]
-INT_PARAMS = ["filter_1_width", "filter_1_height", "filter_2_width", "filter_2_height", "n_filters_conv1",
-              "n_filters_conv2", "n_hidden_dense_1", "batch_size"]
-
 
 class Config(object):
     def __init__(self,
@@ -116,7 +111,35 @@ class DataGenerator(keras.utils.Sequence):
 
 class SoundClassifier(object):
     def __init__(self):
-        pass
+        self.batch_size = 128
+        self.dropout_prob = 0.1
+        self.learning_rate = 0.001
+        self.layer_group_1_kernel = 9
+        self.layer_group_1_n_convs = 16
+        self.layer_group_1_max_pool = 16
+        self.layer_group_2_kernel = 3
+        self.layer_group_2_n_convs = 32
+        self.layer_group_2_max_pool = 4
+        self.layer_group_3_kernel = 3
+        self.layer_group_3_n_convs = 32
+        self.layer_group_3_max_pool = 4
+        self.layer_group_4_kernel = 3
+        self.layer_group_4_n_convs = 256
+        self.dense_1_n_hidden = 64
+        self.dense_2_n_hidden = 1024
+
+    def set_params(self, values):
+        params = ['batch_size', 'layer_group_1_kernel', 'layer_group_1_n_convs', 'layer_group_1_max_pool',
+                  'layer_group_2_kernel', 'layer_group_2_n_convs', 'layer_group_2_max_pool', 'layer_group_3_kernel',
+                  'layer_group_3_n_convs', 'layer_group_3_max_pool', 'layer_group_4_kernel', 'layer_group_4_n_convs',
+                  'dense_1_n_hidden', 'dense_2_n_hidden', 'dropout_prob', 'learning_rate',
+                  ]
+        float_params = ["dropout_prob", "learning_rate"]
+        for value, param in zip(values, params):
+            if param not in float_params:
+                value = int(value)
+            setattr(self, param, value)
+            print "setting {} to {}".format(param, value)
 
     def audio_norm(self, data):
         max_data = np.max(data)
@@ -128,45 +151,38 @@ class SoundClassifier(object):
         nclass = config.n_classes
         input_length = config.audio_length
 
-        dropout_prob = 0.1
-        layer_group_1_kernel = 9
-        layer_group_1_n_convs = 16
-        layer_group_1_max_pool = 16
-        layer_group_2_kernel = 3
-        layer_group_2_n_convs = 32
-        layer_group_2_max_pool = 4
-        layer_group_3_kernel = 3
-        layer_group_3_n_convs = 32
-        layer_group_3_max_pool = 4
-        layer_group_4_kernel = 3
-        layer_group_4_n_convs = 256
-        dense_1_n_hidden = 64
-        dense_2_n_hidden = 1024
-
         inp = keras.layers.Input(shape=(input_length, 1))
-        x = keras.layers.Convolution1D(layer_group_1_n_convs, layer_group_1_kernel, activation=relu, padding="valid")(
+        x = keras.layers.Convolution1D(self.layer_group_1_n_convs, self.layer_group_1_kernel, activation=relu,
+                                       padding="valid")(
             inp)
-        x = keras.layers.Convolution1D(layer_group_1_n_convs, layer_group_1_kernel, activation=relu, padding="valid")(x)
-        x = keras.layers.MaxPool1D(layer_group_1_max_pool)(x)
-        x = keras.layers.Dropout(rate=dropout_prob)(x)
+        x = keras.layers.Convolution1D(self.layer_group_1_n_convs, self.layer_group_1_kernel, activation=relu,
+                                       padding="valid")(x)
+        x = keras.layers.MaxPool1D(self.layer_group_1_max_pool)(x)
+        x = keras.layers.Dropout(rate=self.dropout_prob)(x)
 
-        x = keras.layers.Convolution1D(layer_group_2_n_convs, layer_group_2_kernel, activation=relu, padding="valid")(x)
-        x = keras.layers.Convolution1D(layer_group_2_n_convs, layer_group_2_kernel, activation=relu, padding="valid")(x)
-        x = keras.layers.MaxPool1D(layer_group_2_max_pool)(x)
-        x = keras.layers.Dropout(rate=dropout_prob)(x)
+        x = keras.layers.Convolution1D(self.layer_group_2_n_convs, self.layer_group_2_kernel, activation=relu,
+                                       padding="valid")(x)
+        x = keras.layers.Convolution1D(self.layer_group_2_n_convs, self.layer_group_2_kernel, activation=relu,
+                                       padding="valid")(x)
+        x = keras.layers.MaxPool1D(self.layer_group_2_max_pool)(x)
+        x = keras.layers.Dropout(rate=self.dropout_prob)(x)
 
-        x = keras.layers.Convolution1D(layer_group_3_n_convs, layer_group_3_kernel, activation=relu, padding="valid")(x)
-        x = keras.layers.Convolution1D(layer_group_3_n_convs, layer_group_3_kernel, activation=relu, padding="valid")(x)
-        x = keras.layers.MaxPool1D(layer_group_3_max_pool)(x)
-        x = keras.layers.Dropout(rate=dropout_prob)(x)
+        x = keras.layers.Convolution1D(self.layer_group_3_n_convs, self.layer_group_3_kernel, activation=relu,
+                                       padding="valid")(x)
+        x = keras.layers.Convolution1D(self.layer_group_3_n_convs, self.layer_group_3_kernel, activation=relu,
+                                       padding="valid")(x)
+        x = keras.layers.MaxPool1D(self.layer_group_3_max_pool)(x)
+        x = keras.layers.Dropout(rate=self.dropout_prob)(x)
 
-        x = keras.layers.Convolution1D(layer_group_4_n_convs, layer_group_4_kernel, activation=relu, padding="valid")(x)
-        x = keras.layers.Convolution1D(layer_group_4_n_convs, layer_group_4_kernel, activation=relu, padding="valid")(x)
+        x = keras.layers.Convolution1D(self.layer_group_4_n_convs, self.layer_group_4_kernel, activation=relu,
+                                       padding="valid")(x)
+        x = keras.layers.Convolution1D(self.layer_group_4_n_convs, self.layer_group_4_kernel, activation=relu,
+                                       padding="valid")(x)
         x = keras.layers.GlobalMaxPool1D()(x)
         x = keras.layers.Dropout(rate=0.2)(x)
 
-        x = keras.layers.Dense(dense_1_n_hidden, activation=relu)(x)
-        x = keras.layers.Dense(dense_2_n_hidden, activation=relu)(x)
+        x = keras.layers.Dense(self.dense_1_n_hidden, activation=relu)(x)
+        x = keras.layers.Dense(self.dense_2_n_hidden, activation=relu)(x)
         out = keras.layers.Dense(nclass, activation=softmax)(x)
 
         model = models.Model(inputs=inp, outputs=out)
@@ -175,7 +191,7 @@ class SoundClassifier(object):
         model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
         return model
 
-    def train(self):
+    def train(self, max_epochs=50, n_folds=10):
         train = pd.read_csv("./train.csv")
         test = pd.read_csv("./sample_submission.csv")
         LABELS = list(train.label.unique())
@@ -184,7 +200,8 @@ class SoundClassifier(object):
         test.set_index("fname", inplace=True)
         train["label_idx"] = train.label.apply(lambda x: label_idx[x])
 
-        config = Config(sampling_rate=16000, audio_duration=2, n_folds=10, learning_rate=0.001)
+        config = Config(sampling_rate=16000, audio_duration=2, n_folds=n_folds, learning_rate=self.learning_rate,
+                        max_epochs=max_epochs)
 
         PREDICTION_FOLDER = "predictions_1d_conv"
         if not os.path.exists(PREDICTION_FOLDER):
@@ -208,14 +225,14 @@ class SoundClassifier(object):
 
             model = self.get_1d_conv_model(config)
             train_generator = DataGenerator(config, './audio_train/', train_set.index,
-                                            train_set.label_idx, batch_size=8,
+                                            train_set.label_idx, batch_size=128,
                                             preprocessing_fn=self.audio_norm)
             val_generator = DataGenerator(config, './audio_train/', val_set.index,
-                                          val_set.label_idx, batch_size=8,
+                                          val_set.label_idx, batch_size=128,
                                           preprocessing_fn=self.audio_norm)
             history = model.fit_generator(train_generator, callbacks=callbacks_list, validation_data=val_generator,
                                           epochs=config.max_epochs, use_multiprocessing=True, workers=6,
-                                          max_queue_size=100)
+                                          max_queue_size=20, steps_per_epoch=1)
 
             model.load_weights('best_%d.h5' % i)
 
@@ -223,7 +240,7 @@ class SoundClassifier(object):
             train_generator = DataGenerator(config, './audio_train/', train.index, batch_size=8,
                                             preprocessing_fn=self.audio_norm)
             predictions = model.predict_generator(train_generator, use_multiprocessing=True,
-                                                  workers=6, max_queue_size=100, verbose=1)
+                                                  workers=6, max_queue_size=20, verbose=1)
             np.save(PREDICTION_FOLDER + "/train_predictions_%d.npy" % i, predictions)
 
             # Save test predictions
@@ -263,29 +280,34 @@ def gpyopt_helper(x):
         x: a 2D numpy array containing hyperparameters for the current acquisition
     returns:
         Error: The best test error for the training run."""
-    params = {}
-    for param, value in zip(PARAMS, x[0]):
-        if param in INT_PARAMS:
-            value = int(value)
-        params[param] = value
-    sc = SoundClassifier(**params)
-    sc.train(5000)
+
+    sc = SoundClassifier()
+    sc.set_params(x[0])
+    sc.train(1, 2)
     # Convert accuracy to error
     error = 1 - sc.best_accuracy
     return np.array([[error]])
 
 
 def bayes_opt():
-    """Run bayesian optimization on the MNIST Classifier using GPyOpt"""
-    bounds = [{'name': 'filter_1_width', 'type': 'discrete', 'domain': range(3, 7)},
-              {'name': 'filter_1_height', 'type': 'discrete', 'domain': range(3, 7)},
-              {'name': 'filter_2_width', 'type': 'discrete', 'domain': range(3, 7)},
-              {'name': 'filter_2_height', 'type': 'discrete', 'domain': range(3, 7)},
+    """Run bayesian optimization on the Sound Classifier using GPyOpt"""
+
+    bounds = [{'name': 'batch_size', 'type': 'discrete', 'domain': range(64, 256)},
+              {'name': 'layer_group_1_kernel', 'type': 'discrete', 'domain': range(4, 8)},
+              {'name': 'layer_group_1_n_convs', 'type': 'discrete', 'domain': range(8, 64)},
+              {'name': 'layer_group_1_max_pool', 'type': 'discrete', 'domain': range(4, 16)},
+              {'name': 'layer_group_2_kernel', 'type': 'discrete', 'domain': range(8, 32)},
+              {'name': 'layer_group_2_n_convs', 'type': 'discrete', 'domain': range(4, 64)},
+              {'name': 'layer_group_2_max_pool', 'type': 'discrete', 'domain': range(4, 16)},
+              {'name': 'layer_group_3_kernel', 'type': 'discrete', 'domain': range(4, 16)},
+              {'name': 'layer_group_3_n_convs', 'type': 'discrete', 'domain': range(8, 32)},
+              {'name': 'layer_group_3_max_pool', 'type': 'discrete', 'domain': range(4, 16)},
+              {'name': 'layer_group_4_kernel,', 'type': 'discrete', 'domain': range(4, 16)},
+              {'name': 'layer_group_4_n_convs', 'type': 'discrete', 'domain': range(8, 512)},
+              {'name': 'dense_1_n_hidden', 'type': 'discrete', 'domain': range(64, 1024)},
+              {'name': 'dense_2_n_hidden', 'type': 'discrete', 'domain': range(64, 1024)},
+              {'name': 'dropout_prob', 'type': 'continuous', 'domain': (0.05, 0.75)},
               {'name': 'learning_rate', 'type': 'continuous', 'domain': (0.000001, 0.1)},
-              {'name': 'n_filters_conv1', 'type': 'discrete', 'domain': range(32, 128)},
-              {'name': 'n_filters_conv2', 'type': 'discrete', 'domain': range(32, 128)},
-              {'name': 'n_hidden_dense_1', 'type': 'discrete', 'domain': range(512, 1024)},
-              {'name': 'batch_size', 'type': 'discrete', 'domain': range(32, 512)},
               ]
     myProblem = GPyOpt.methods.BayesianOptimization(gpyopt_helper, bounds)
     myProblem.run_optimization(100)
@@ -293,5 +315,4 @@ def bayes_opt():
 
 
 if __name__ == "__main__":
-    sc = SoundClassifier()
-    sc.train()
+    bayes_opt()
