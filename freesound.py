@@ -200,7 +200,7 @@ class SoundClassifier(object):
         test.set_index("fname", inplace=True)
         train["label_idx"] = train.label.apply(lambda x: label_idx[x])
 
-        config = Config(sampling_rate=16000, audio_duration=2, n_folds=n_folds, learning_rate=self.learning_rate,
+        config = Config(sampling_rate=24000, audio_duration=2, n_folds=n_folds, learning_rate=self.learning_rate,
                         max_epochs=max_epochs)
 
         PREDICTION_FOLDER = "predictions_1d_conv"
@@ -225,22 +225,22 @@ class SoundClassifier(object):
 
             model = self.get_1d_conv_model(config)
             train_generator = DataGenerator(config, './audio_train/', train_set.index,
-                                            train_set.label_idx, batch_size=128,
+                                            train_set.label_idx, batch_size=self.batch_size,
                                             preprocessing_fn=self.audio_norm)
             val_generator = DataGenerator(config, './audio_train/', val_set.index,
-                                          val_set.label_idx, batch_size=128,
+                                          val_set.label_idx, batch_size=self.batch_size,
                                           preprocessing_fn=self.audio_norm)
             history = model.fit_generator(train_generator, callbacks=callbacks_list, validation_data=val_generator,
                                           epochs=config.max_epochs, use_multiprocessing=True, workers=6,
-                                          max_queue_size=20, steps_per_epoch=1)
+                                          max_queue_size=100, steps_per_epoch=1)
 
             model.load_weights('best_%d.h5' % i)
 
             # Save train predictions
-            train_generator = DataGenerator(config, './audio_train/', train.index, batch_size=8,
+            train_generator = DataGenerator(config, './audio_train/', train.index, batch_size=self.batch_size,
                                             preprocessing_fn=self.audio_norm)
             predictions = model.predict_generator(train_generator, use_multiprocessing=True,
-                                                  workers=6, max_queue_size=20, verbose=1)
+                                                  workers=6, max_queue_size=100, verbose=1)
             np.save(PREDICTION_FOLDER + "/train_predictions_%d.npy" % i, predictions)
 
             # Save test predictions
@@ -248,7 +248,7 @@ class SoundClassifier(object):
             test_generator = DataGenerator(config, './audio_test/', test.index, batch_size=1,
                                            preprocessing_fn=self.audio_norm)
             predictions = model.predict_generator(test_generator, use_multiprocessing=True,
-                                                  workers=6, max_queue_size=20, verbose=1)
+                                                  workers=6, max_queue_size=100, verbose=1)
             np.save(PREDICTION_FOLDER + "/test_predictions_%d.npy" % i, predictions)
 
             # Make a submission file
@@ -283,7 +283,7 @@ def gpyopt_helper(x):
 
     sc = SoundClassifier()
     sc.set_params(x[0])
-    sc.train(1, 2)
+    sc.train(10, 5)
     # Convert accuracy to error
     error = 1 - sc.best_accuracy
     return np.array([[error]])
@@ -307,7 +307,7 @@ def bayes_opt():
               {'name': 'dense_1_n_hidden', 'type': 'discrete', 'domain': range(64, 1024)},
               {'name': 'dense_2_n_hidden', 'type': 'discrete', 'domain': range(64, 1024)},
               {'name': 'dropout_prob', 'type': 'continuous', 'domain': (0.05, 0.75)},
-              {'name': 'learning_rate', 'type': 'continuous', 'domain': (0.000001, 0.1)},
+              {'name': 'learning_rate', 'type': 'continuous', 'domain': (0.000001, 0.01)},
               ]
     myProblem = GPyOpt.methods.BayesianOptimization(gpyopt_helper, bounds)
     myProblem.run_optimization(100)
