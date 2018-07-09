@@ -127,6 +127,7 @@ class SoundClassifier(object):
         self.layer_group_4_n_convs = 256
         self.dense_1_n_hidden = 64
         self.dense_2_n_hidden = 1024
+        self.use_mfcc = True
 
     def set_params(self, values):
         params = ['batch_size', 'layer_group_1_kernel', 'layer_group_1_n_convs', 'layer_group_1_max_pool',
@@ -134,6 +135,12 @@ class SoundClassifier(object):
                   'layer_group_3_n_convs', 'layer_group_3_max_pool', 'layer_group_4_kernel', 'layer_group_4_n_convs',
                   'dense_1_n_hidden', 'dense_2_n_hidden', 'dropout_prob', 'learning_rate',
                   ]
+        if self.use_mfcc:
+            params = ['batch_size', 'layer_group_1_kernel', 'layer_group_1_n_convs',
+                      'layer_group_2_kernel', 'layer_group_2_n_convs', 'layer_group_3_kernel',
+                      'layer_group_3_n_convs', 'layer_group_4_kernel', 'layer_group_4_n_convs',
+                      'dense_1_n_hidden', 'dense_2_n_hidden', 'dropout_prob', 'learning_rate',
+                      ]
         float_params = ["dropout_prob", "learning_rate"]
         for value, param in zip(values, params):
             if param not in float_params:
@@ -191,6 +198,46 @@ class SoundClassifier(object):
         model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
         return model
 
+    def get_2d_conv_model(self, config):
+
+        nclass = config.n_classes
+        print config.dim
+        inp = keras.layers.Input(shape=(config.dim[0], config.dim[1], 1))
+        x = keras.layers.Convolution2D(self.layer_group_1_n_convs,
+                                       (self.layer_group_1_kernel, self.layer_group_1_kernel), padding="same")(inp)
+        x = keras.layers.BatchNormalization()(x)
+        x = keras.layers.Activation("relu")(x)
+        x = keras.layers.MaxPool2D()(x)
+
+        x = keras.layers.Convolution2D(self.layer_group_2_n_convs,
+                                       (self.layer_group_2_kernel, self.layer_group_2_kernel), padding="same")(x)
+        x = keras.layers.BatchNormalization()(x)
+        x = keras.layers.Activation("relu")(x)
+        x = keras.layers.MaxPool2D()(x)
+        x = keras.layers.Convolution2D(self.layer_group_3_n_convs,
+                                       (self.layer_group_3_kernel, self.layer_group_3_kernel), padding="same")(x)
+
+        x = keras.layers.BatchNormalization()(x)
+        x = keras.layers.Activation("relu")(x)
+        x = keras.layers.MaxPool2D()(x)
+        x = keras.layers.Convolution2D(self.layer_group_4_n_convs,
+                                       (self.layer_group_4_kernel, self.layer_group_4_kernel), padding="same")(x)
+        x = keras.layers.BatchNormalization()(x)
+        x = keras.layers.Activation("relu")(x)
+        x = keras.layers.MaxPool2D()(x)
+
+        x = keras.layers.Flatten()(x)
+        x = keras.layers.Dense(self.dense_1_n_hidden)(x)
+        x = keras.layers.BatchNormalization()(x)
+        x = keras.layers.Activation("relu")(x)
+        out = keras.layers.Dense(nclass, activation=softmax)(x)
+
+        model = models.Model(inputs=inp, outputs=out)
+        opt = optimizers.Adam(config.learning_rate)
+
+        model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
+        return model
+
     def train(self, max_epochs=50, n_folds=10):
         train = pd.read_csv("./train.csv")
         test = pd.read_csv("./sample_submission.csv")
@@ -201,7 +248,7 @@ class SoundClassifier(object):
         train["label_idx"] = train.label.apply(lambda x: label_idx[x])
 
         config = Config(sampling_rate=24000, audio_duration=2, n_folds=n_folds, learning_rate=self.learning_rate,
-                        max_epochs=max_epochs)
+                        max_epochs=max_epochs, use_mfcc=self.use_mfcc, n_mfcc=80)
 
         PREDICTION_FOLDER = "predictions_1d_conv"
         if not os.path.exists(PREDICTION_FOLDER):
@@ -223,7 +270,10 @@ class SoundClassifier(object):
             print("Fold: ", i)
             print("#" * 50)
 
-            model = self.get_1d_conv_model(config)
+            if self.use_mfcc:
+                model = self.get_2d_conv_model(config)
+            else:
+                model = self.get_1d_conv_model(config)
             train_generator = DataGenerator(config, './audio_train/', train_set.index,
                                             train_set.label_idx, batch_size=self.batch_size,
                                             preprocessing_fn=self.audio_norm)
@@ -232,7 +282,7 @@ class SoundClassifier(object):
                                           preprocessing_fn=self.audio_norm)
             history = model.fit_generator(train_generator, callbacks=callbacks_list, validation_data=val_generator,
                                           epochs=config.max_epochs, use_multiprocessing=True, workers=6,
-                                          max_queue_size=100, steps_per_epoch=1)
+                                          max_queue_size=100)
 
             model.load_weights('best_%d.h5' % i)
 
@@ -309,7 +359,22 @@ def bayes_opt():
               {'name': 'dropout_prob', 'type': 'continuous', 'domain': (0.05, 0.75)},
               {'name': 'learning_rate', 'type': 'continuous', 'domain': (0.000001, 0.01)},
               ]
-    myProblem = GPyOpt.methods.BayesianOptimization(gpyopt_helper, bounds)
+
+    mfcc_bounds = [{'name': 'batch_size', 'type': 'discrete', 'domain': range(64, 256)},
+                   {'name': 'layer_group_1_kernel', 'type': 'discrete', 'domain': range(4, 8)},
+                   {'name': 'layer_group_1_n_convs', 'type': 'discrete', 'domain': range(8, 64)},
+                   {'name': 'layer_group_2_kernel', 'type': 'discrete', 'domain': range(8, 32)},
+                   {'name': 'layer_group_2_n_convs', 'type': 'discrete', 'domain': range(4, 64)},
+                   {'name': 'layer_group_3_kernel', 'type': 'discrete', 'domain': range(4, 16)},
+                   {'name': 'layer_group_3_n_convs', 'type': 'discrete', 'domain': range(8, 32)},
+                   {'name': 'layer_group_4_kernel,', 'type': 'discrete', 'domain': range(4, 16)},
+                   {'name': 'layer_group_4_n_convs', 'type': 'discrete', 'domain': range(8, 512)},
+                   {'name': 'dense_1_n_hidden', 'type': 'discrete', 'domain': range(64, 1024)},
+                   {'name': 'dense_2_n_hidden', 'type': 'discrete', 'domain': range(64, 1024)},
+                   {'name': 'dropout_prob', 'type': 'continuous', 'domain': (0.05, 0.75)},
+                   {'name': 'learning_rate', 'type': 'continuous', 'domain': (0.000001, 0.01)},
+                   ]
+    myProblem = GPyOpt.methods.BayesianOptimization(gpyopt_helper, mfcc_bounds)
     myProblem.run_optimization(100)
     myProblem.save_evaluations("ev_file")
 
