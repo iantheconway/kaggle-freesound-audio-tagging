@@ -139,7 +139,7 @@ class SoundClassifier(object):
             params = ['batch_size', 'layer_group_1_kernel', 'layer_group_1_n_convs',
                       'layer_group_2_kernel', 'layer_group_2_n_convs', 'layer_group_3_kernel',
                       'layer_group_3_n_convs', 'layer_group_4_kernel', 'layer_group_4_n_convs',
-                      'dense_1_n_hidden', 'dense_2_n_hidden', 'dropout_prob', 'learning_rate',
+                      'dense_1_n_hidden', 'dropout_prob', 'learning_rate',
                       ]
         float_params = ["dropout_prob", "learning_rate"]
         for value, param in zip(values, params):
@@ -333,7 +333,7 @@ def gpyopt_helper(x):
 
     sc = SoundClassifier()
     sc.set_params(x[0])
-    sc.train(10, 5)
+    sc.train(10, 2)
     # Convert accuracy to error
     error = 1 - sc.best_accuracy
     return np.array([[error]])
@@ -370,7 +370,6 @@ def bayes_opt():
                    {'name': 'layer_group_4_kernel,', 'type': 'discrete', 'domain': range(4, 16)},
                    {'name': 'layer_group_4_n_convs', 'type': 'discrete', 'domain': range(8, 512)},
                    {'name': 'dense_1_n_hidden', 'type': 'discrete', 'domain': range(64, 1024)},
-                   {'name': 'dense_2_n_hidden', 'type': 'discrete', 'domain': range(64, 1024)},
                    {'name': 'dropout_prob', 'type': 'continuous', 'domain': (0.05, 0.75)},
                    {'name': 'learning_rate', 'type': 'continuous', 'domain': (0.000001, 0.01)},
                    ]
