@@ -418,14 +418,26 @@ class SoundClassifier(object):
         opt = optimizers.Adam(self.learning_rate)
         model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
                       target_tensors=[y_it.get_next()])
-        sess = keras.backend.get_session()
-        # print sess.run(y_it.get_next())
-        # exit()
-        # coord = tf.train.Coordinator()
-        # threads = tf.train.start_queue_runners(sess, coord)
         # TODO: Shuffle after each epoch
         model.fit(steps_per_epoch=train_set_size/self.batch_size, epochs=10)
-        self.best_accuracy = model.evaluate(steps=train_set_size/self.batch_size)[1]
+        model.save_weights("model.h5")
+        test_dataset = tf.data.TFRecordDataset(filenames=["./audio_test.tfrecords"])
+        #test_dataset = train_dataset.shuffle(train_set_size, seed=42).repeat()
+
+        test_x = test_dataset.map(self.feature_parser)
+        x_it = test_x.make_one_shot_iterator()
+
+        test_y = test_dataset.map(self.label_parser)
+        y_it = test_y.make_one_shot_iterator()
+
+        model = self.get_2d_conv_model(input_tensor=x_it.get_next(), compile_model=False)
+        opt = optimizers.Adam(self.learning_rate)
+        model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
+                      target_tensors=[y_it.get_next()])
+
+        model.load_weights("model.h5")
+
+        self.best_accuracy = model.evaluate(steps=train_set_size)[1]
 
 
 def gpyopt_helper(x):
