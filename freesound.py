@@ -393,8 +393,8 @@ class SoundClassifier(object):
         sess = keras.backend.get_session()
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess, coord)
-        model.fit(steps_per_epoch=1000/self.batch_size)
-        exit()
+        model.fit(steps_per_epoch=10000/self.batch_size)
+        self.best_accuracy = model.evaluate()
 
 
 def gpyopt_helper(x):
