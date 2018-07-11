@@ -425,10 +425,10 @@ class SoundClassifier(object):
         #test_dataset = train_dataset.shuffle(train_set_size, seed=42).repeat()
 
         test_x = test_dataset.map(self.feature_parser)
-        x_it = test_x.make_one_shot_iterator()
+        x_it = test_x.batch(self.batch_size).make_one_shot_iterator()
 
         test_y = test_dataset.map(self.label_parser)
-        y_it = test_y.make_one_shot_iterator()
+        y_it = test_y.batch(self.batch_size).make_one_shot_iterator()
 
         model = self.get_2d_conv_model(input_tensor=x_it.get_next(), compile_model=False)
         opt = optimizers.Adam(self.learning_rate)
@@ -436,8 +436,8 @@ class SoundClassifier(object):
                       target_tensors=[y_it.get_next()])
 
         model.load_weights("model.h5")
-
-        self.best_accuracy = model.evaluate(steps=train_set_size)[1]
+        self.best_accuracy = model.evaluate(steps=train_set_size/self.batch_size)[1]
+        print "validation accuracy: {}".format(self.best_accuracy)
 
 
 def gpyopt_helper(x):
