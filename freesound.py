@@ -408,7 +408,7 @@ class SoundClassifier(object):
         model_train.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
                             target_tensors=[y_it.get_next()])
 
-        test_dataset = tf.data.TFRecordDataset(filenames=["./audio_eval.tfrecords"])
+        test_dataset = tf.data.TFRecordDataset(filenames=["./audio_eval.tfrecords"]).repeat()
         test_x = test_dataset.map(self.feature_parser)
         x_it = test_x.batch(self.batch_size).make_one_shot_iterator()
 
