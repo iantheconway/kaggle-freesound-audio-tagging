@@ -393,6 +393,7 @@ class SoundClassifier(object):
         train["label_idx"] = train.label.apply(lambda x: label_idx[x])
 
         train_set_size = int(len(train["label_idx"]) * .8)
+        test_set_size = int(len(train["label_idx"]) * .2)
 
         train_dataset = tf.data.TFRecordDataset(filenames=["./audio_train.tfrecords"])
         train_dataset = train_dataset.shuffle(train_set_size, seed=42).repeat()
@@ -436,7 +437,7 @@ class SoundClassifier(object):
                       target_tensors=[y_it.get_next()])
 
         model.load_weights("model.h5")
-        self.best_accuracy = model.evaluate(steps=train_set_size/self.batch_size)[1]
+        self.best_accuracy = model.evaluate(steps=test_set_size/self.batch_size)[1]
         print "validation accuracy: {}".format(self.best_accuracy)
 
 
