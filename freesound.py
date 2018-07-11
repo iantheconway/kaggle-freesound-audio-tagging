@@ -420,7 +420,7 @@ class SoundClassifier(object):
         model_test.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
                            target_tensors=[y_it.get_next()])
         # TODO: Shuffle after each epoch
-        for i in range(40):
+        for i in range(50):
 
             model_train.fit(steps_per_epoch=train_set_size/self.batch_size)
             model_train.save_weights("model.h5")
