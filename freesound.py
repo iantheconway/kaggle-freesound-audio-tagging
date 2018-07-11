@@ -402,7 +402,7 @@ class SoundClassifier(object):
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess, coord)
         model.fit(steps_per_epoch=train_set_size/self.batch_size)
-        self.best_accuracy = model.evaluate()
+        self.best_accuracy = model.evaluate(steps=train_set_size/self.batch_size)
 
 
 def gpyopt_helper(x):
