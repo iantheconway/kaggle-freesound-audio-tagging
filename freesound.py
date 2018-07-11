@@ -396,7 +396,7 @@ class SoundClassifier(object):
         test_set_size = int(len(train["label_idx"]) * .2)
 
         train_dataset = tf.data.TFRecordDataset(filenames=["./audio_train.tfrecords"])
-        train_dataset = train_dataset.shuffle(train_set_size, seed=i).repeat()
+        train_dataset = train_dataset.shuffle(train_set_size, seed=42).repeat()
 
         train_x = train_dataset.map(self.feature_parser)
         x_it = train_x.batch(self.batch_size).make_one_shot_iterator()
@@ -421,7 +421,7 @@ class SoundClassifier(object):
                            target_tensors=[y_it.get_next()])
         # TODO: Shuffle after each epoch
         for i in range(15):
-            
+
             model_train.fit(steps_per_epoch=train_set_size/self.batch_size)
             model_train.save_weights("model.h5")
 
