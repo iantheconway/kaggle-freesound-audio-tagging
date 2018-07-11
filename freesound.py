@@ -401,7 +401,7 @@ class SoundClassifier(object):
         sess = keras.backend.get_session()
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess, coord)
-        model.fit(steps_per_epoch=train_set_size/self.batch_size)
+        model.fit(steps_per_epoch=train_set_size/self.batch_size, epochs=10)
         self.best_accuracy = model.evaluate(steps=train_set_size/self.batch_size)[1]
 
 
