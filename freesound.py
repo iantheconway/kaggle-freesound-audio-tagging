@@ -385,7 +385,7 @@ class SoundClassifier(object):
         train_set_size = int(len(train["label_idx"]) * .8)
 
         train_dataset = tf.data.TFRecordDataset(filenames=["./audio_train.tfrecords"])
-        # train_dataset = train_dataset.shuffle(train_set_size).repeat()
+        train_dataset = train_dataset.shuffle(train_set_size).repeat()
         train_x = train_dataset.map(self.feature_parser)
         x_it = train_x.batch(self.batch_size).make_one_shot_iterator()
 
@@ -400,6 +400,7 @@ class SoundClassifier(object):
         # exit()
         # coord = tf.train.Coordinator()
         # threads = tf.train.start_queue_runners(sess, coord)
+        # TODO: Shuffle after each epoch
         model.fit(steps_per_epoch=train_set_size/self.batch_size, epochs=10)
         self.best_accuracy = model.evaluate(steps=train_set_size/self.batch_size)[1]
 
