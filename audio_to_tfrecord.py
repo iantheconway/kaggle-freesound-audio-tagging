@@ -68,6 +68,7 @@ def create_records(data_dir, id_list, labels, use_mfcc=True, n_mfcc=80):
                 data = audio_norm(data)[:, np.newaxis]
             label = labels[i]
             label = _int64_feature(label)
+            data = data.flatten()
             example = tf.train.Example(features=tf.train.Features(feature={
                 'n_mfcc': _int64_feature(n_mfcc),
                 'features': _bytes_feature(data.tostring()),
