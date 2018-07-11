@@ -203,12 +203,10 @@ class SoundClassifier(object):
     def get_2d_conv_model(self, config=None, input_tensor=None, compile_model=False):
         if config:
             nclass = config.n_classes
-            print config.dim
             inp = keras.layers.Input(shape=(config.dim[0], config.dim[1], 1))
         else:
             nclass = 41
             inp = keras.layers.Input(tensor=input_tensor)
-            print inp
         x = keras.layers.Convolution2D(self.layer_group_1_n_convs,
                                        (self.layer_group_1_kernel, self.layer_group_1_kernel), padding="same")(inp)
         x = keras.layers.BatchNormalization()(x)
@@ -393,14 +391,15 @@ class SoundClassifier(object):
 
         train_y = train_dataset.map(self.label_parser)
         y_it = train_y.batch(self.batch_size).make_one_shot_iterator()
-        print x_it.get_next().shape
         model = self.get_2d_conv_model(input_tensor=x_it.get_next(), compile_model=False)
         opt = optimizers.Adam(self.learning_rate)
         model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
                       target_tensors=[y_it.get_next()])
         sess = keras.backend.get_session()
-        coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(sess, coord)
+        # print sess.run(y_it.get_next())
+        # exit()
+        # coord = tf.train.Coordinator()
+        # threads = tf.train.start_queue_runners(sess, coord)
         model.fit(steps_per_epoch=train_set_size/self.batch_size, epochs=10)
         self.best_accuracy = model.evaluate(steps=train_set_size/self.batch_size)[1]
 
