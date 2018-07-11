@@ -375,11 +375,19 @@ class SoundClassifier(object):
 
         callbacks_list = [checkpoint, early, tb]
         print("#" * 50)
-        # train_dataset = tf.data.TFRecordDataset(filenames=["./audio_train.tfrecords"])
-        # train_dataset = train_dataset.shuffle(10000)
-        # train_dataset = train_dataset.map(self.record_parse).batch(self.batch_size)
+
+        train = pd.read_csv("./train.csv")
+        test = pd.read_csv("./sample_submission.csv")
+        LABELS = list(train.label.unique())
+        label_idx = {label: i for i, label in enumerate(LABELS)}
+        train.set_index("fname", inplace=True)
+        test.set_index("fname", inplace=True)
+        train["label_idx"] = train.label.apply(lambda x: label_idx[x])
+
+        train_set_size = int(len(train["label_idx"]) * .8)
+
         train_dataset = tf.data.TFRecordDataset(filenames=["./audio2_train.tfrecords"])
-        train_dataset = train_dataset.shuffle(10000)
+        train_dataset = train_dataset.shuffle(train_set_size)
         train_x = train_dataset.map(self.feature_parser)
         x_it = train_x.batch(self.batch_size).make_one_shot_iterator()
 
@@ -393,7 +401,7 @@ class SoundClassifier(object):
         sess = keras.backend.get_session()
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess, coord)
-        model.fit(steps_per_epoch=10000/self.batch_size)
+        model.fit(steps_per_epoch=train_set_size/self.batch_size)
         self.best_accuracy = model.evaluate()
 
 
