@@ -346,6 +346,16 @@ class SoundClassifier(object):
         features = tf.reshape(features, (80, 1 + int(np.floor(24000 * 2 / 512)), 1))
         return features
 
+    def fn_parser(self, record):
+        keys_to_features = {
+            "filename": tf.FixedLenFeature([], tf.string)
+        }
+        parsed = tf.parse_single_example(record, keys_to_features)
+        #features = tf.decode_raw(parsed["features"], tf.string)
+        fn = tf.cast(parsed["filename"], tf.string)
+        # features = tf.reshape(features, (80, 1 + int(np.floor(24000 * 2 / 512)), 1))
+        return fn
+
     def record_parse(self, record):
         keys_to_features = {
             "features": tf.FixedLenFeature([], tf.string),
@@ -385,12 +395,25 @@ class SoundClassifier(object):
         train_set_size = int(len(train["label_idx"]) * .8)
 
         train_dataset = tf.data.TFRecordDataset(filenames=["./audio_train.tfrecords"])
-        train_dataset = train_dataset.shuffle(train_set_size).repeat()
+        train_dataset = train_dataset.shuffle(train_set_size, seed=42).repeat()
+
         train_x = train_dataset.map(self.feature_parser)
         x_it = train_x.batch(self.batch_size).make_one_shot_iterator()
 
         train_y = train_dataset.map(self.label_parser)
         y_it = train_y.batch(self.batch_size).make_one_shot_iterator()
+
+        # train_fn = train_dataset.map(self.fn_parser)
+        # fn_it = train_fn.batch(self.batch_size).make_one_shot_iterator()
+        #
+        # x = keras.backend.get_session().run(x_it.get_next())[0]
+        # y = keras.backend.get_session().run(y_it.get_next())[0]
+        # fn = keras.backend.get_session().run(fn_it.get_next())[0]
+        #
+        # print fn
+        # print x
+        # print y
+
         model = self.get_2d_conv_model(input_tensor=x_it.get_next(), compile_model=False)
         opt = optimizers.Adam(self.learning_rate)
         model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
