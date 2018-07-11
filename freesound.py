@@ -394,37 +394,39 @@ class SoundClassifier(object):
 
         train_set_size = int(len(train["label_idx"]) * .8)
         test_set_size = int(len(train["label_idx"]) * .2)
+
+        train_dataset = tf.data.TFRecordDataset(filenames=["./audio_train.tfrecords"])
+        train_dataset = train_dataset.shuffle(train_set_size, seed=i).repeat()
+
+        train_x = train_dataset.map(self.feature_parser)
+        x_it = train_x.batch(self.batch_size).make_one_shot_iterator()
+
+        train_y = train_dataset.map(self.label_parser)
+        y_it = train_y.batch(self.batch_size).make_one_shot_iterator()
+        model_train = self.get_2d_conv_model(input_tensor=x_it.get_next(), compile_model=False)
+        opt = optimizers.Adam(self.learning_rate)
+        model_train.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
+                            target_tensors=[y_it.get_next()])
+
+        test_dataset = tf.data.TFRecordDataset(filenames=["./audio_eval.tfrecords"])
+        test_x = test_dataset.map(self.feature_parser)
+        x_it = test_x.batch(self.batch_size).make_one_shot_iterator()
+
+        test_y = test_dataset.map(self.label_parser)
+        y_it = test_y.batch(self.batch_size).make_one_shot_iterator()
+
+        model_test = self.get_2d_conv_model(input_tensor=x_it.get_next(), compile_model=False)
+        opt = optimizers.Adam(self.learning_rate)
+        model_test.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
+                           target_tensors=[y_it.get_next()])
         # TODO: Shuffle after each epoch
         for i in range(15):
-            train_dataset = tf.data.TFRecordDataset(filenames=["./audio_train.tfrecords"])
-            train_dataset = train_dataset.shuffle(train_set_size, seed=i).repeat()
+            
+            model_train.fit(steps_per_epoch=train_set_size/self.batch_size)
+            model_train.save_weights("model.h5")
 
-            train_x = train_dataset.map(self.feature_parser)
-            x_it = train_x.batch(self.batch_size).make_one_shot_iterator()
-
-            train_y = train_dataset.map(self.label_parser)
-            y_it = train_y.batch(self.batch_size).make_one_shot_iterator()
-            model = self.get_2d_conv_model(input_tensor=x_it.get_next(), compile_model=False)
-            opt = optimizers.Adam(self.learning_rate)
-            model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
-                          target_tensors=[y_it.get_next()])
-
-            model.fit(steps_per_epoch=train_set_size/self.batch_size)
-            model.save_weights("model.h5")
-            test_dataset = tf.data.TFRecordDataset(filenames=["./audio_eval.tfrecords"])
-            test_x = test_dataset.map(self.feature_parser)
-            x_it = test_x.batch(self.batch_size).make_one_shot_iterator()
-
-            test_y = test_dataset.map(self.label_parser)
-            y_it = test_y.batch(self.batch_size).make_one_shot_iterator()
-
-            model = self.get_2d_conv_model(input_tensor=x_it.get_next(), compile_model=False)
-            opt = optimizers.Adam(self.learning_rate)
-            model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
-                          target_tensors=[y_it.get_next()])
-
-            model.load_weights("model.h5")
-            accuracy = model.evaluate(steps=test_set_size/self.batch_size)[1]
+            model_test.load_weights("model.h5")
+            accuracy = model_test.evaluate(steps=test_set_size/self.batch_size)[1]
             print "validation accuracy: {}".format(accuracy)
             if accuracy > self.best_accuracy:
                 self.best_accuracy = accuracy
