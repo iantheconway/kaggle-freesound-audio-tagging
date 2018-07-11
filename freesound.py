@@ -394,51 +394,41 @@ class SoundClassifier(object):
 
         train_set_size = int(len(train["label_idx"]) * .8)
         test_set_size = int(len(train["label_idx"]) * .2)
-
-        train_dataset = tf.data.TFRecordDataset(filenames=["./audio_train.tfrecords"])
-        train_dataset = train_dataset.shuffle(train_set_size, seed=42).repeat()
-
-        train_x = train_dataset.map(self.feature_parser)
-        x_it = train_x.batch(self.batch_size).make_one_shot_iterator()
-
-        train_y = train_dataset.map(self.label_parser)
-        y_it = train_y.batch(self.batch_size).make_one_shot_iterator()
-
-        # train_fn = train_dataset.map(self.fn_parser)
-        # fn_it = train_fn.batch(self.batch_size).make_one_shot_iterator()
-        #
-        # x = keras.backend.get_session().run(x_it.get_next())[0]
-        # y = keras.backend.get_session().run(y_it.get_next())[0]
-        # fn = keras.backend.get_session().run(fn_it.get_next())[0]
-        #
-        # print fn
-        # print x
-        # print y
-
-        model = self.get_2d_conv_model(input_tensor=x_it.get_next(), compile_model=False)
-        opt = optimizers.Adam(self.learning_rate)
-        model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
-                      target_tensors=[y_it.get_next()])
         # TODO: Shuffle after each epoch
-        model.fit(steps_per_epoch=train_set_size/self.batch_size, epochs=10)
-        model.save_weights("model.h5")
-        test_dataset = tf.data.TFRecordDataset(filenames=["./audio_eval.tfrecords"])
-        #test_dataset = train_dataset.shuffle(train_set_size, seed=42).repeat()
+        for i in range(15):
+            train_dataset = tf.data.TFRecordDataset(filenames=["./audio_train.tfrecords"])
+            train_dataset = train_dataset.shuffle(train_set_size, seed=i).repeat()
 
-        test_x = test_dataset.map(self.feature_parser)
-        x_it = test_x.batch(self.batch_size).make_one_shot_iterator()
+            train_x = train_dataset.map(self.feature_parser)
+            x_it = train_x.batch(self.batch_size).make_one_shot_iterator()
 
-        test_y = test_dataset.map(self.label_parser)
-        y_it = test_y.batch(self.batch_size).make_one_shot_iterator()
+            train_y = train_dataset.map(self.label_parser)
+            y_it = train_y.batch(self.batch_size).make_one_shot_iterator()
+            model = self.get_2d_conv_model(input_tensor=x_it.get_next(), compile_model=False)
+            opt = optimizers.Adam(self.learning_rate)
+            model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
+                          target_tensors=[y_it.get_next()])
 
-        model = self.get_2d_conv_model(input_tensor=x_it.get_next(), compile_model=False)
-        opt = optimizers.Adam(self.learning_rate)
-        model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
-                      target_tensors=[y_it.get_next()])
+            model.fit(steps_per_epoch=train_set_size/self.batch_size)
+            model.save_weights("model.h5")
+            test_dataset = tf.data.TFRecordDataset(filenames=["./audio_eval.tfrecords"])
+            test_x = test_dataset.map(self.feature_parser)
+            x_it = test_x.batch(self.batch_size).make_one_shot_iterator()
 
-        model.load_weights("model.h5")
-        self.best_accuracy = model.evaluate(steps=test_set_size/self.batch_size)[1]
-        print "validation accuracy: {}".format(self.best_accuracy)
+            test_y = test_dataset.map(self.label_parser)
+            y_it = test_y.batch(self.batch_size).make_one_shot_iterator()
+
+            model = self.get_2d_conv_model(input_tensor=x_it.get_next(), compile_model=False)
+            opt = optimizers.Adam(self.learning_rate)
+            model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
+                          target_tensors=[y_it.get_next()])
+
+            model.load_weights("model.h5")
+            accuracy = model.evaluate(steps=test_set_size/self.batch_size)[1]
+            print "validation accuracy: {}".format(accuracy)
+            if accuracy > self.best_accuracy:
+                self.best_accuracy = accuracy
+
 
 
 def gpyopt_helper(x):
