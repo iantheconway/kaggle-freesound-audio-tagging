@@ -402,6 +402,7 @@ class SoundClassifier(object):
         test_set_size = int(len(train["label_idx"]) * .2)
 
         train_dataset = tf.data.TFRecordDataset(filenames=["./audio_42_mfcc_train.tfrecords"])
+        # Note: repeat before shuffle results in sampling with replacement
         train_dataset = train_dataset.repeat().shuffle(train_set_size, seed=42)
 
         train_x = train_dataset.map(self.feature_parser)
@@ -413,7 +414,6 @@ class SoundClassifier(object):
         opt = optimizers.Adam(self.learning_rate)
         model_train.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
                             target_tensors=[y_it.get_next()])
-
         test_dataset = tf.data.TFRecordDataset(filenames=["./audio_42_mfcc_eval.tfrecords"]).repeat()
         test_x = test_dataset.map(self.feature_parser)
         x_it = test_x.batch(self.batch_size).make_one_shot_iterator()
@@ -426,8 +426,8 @@ class SoundClassifier(object):
         model_test.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
                            target_tensors=[y_it.get_next()])
         # TODO: Shuffle after each epoch
-        for i in range(25):
-
+        for i in range(50):
+            print "cycle {}".format(i)
             model_train.fit(steps_per_epoch=train_set_size/self.batch_size, callbacks=callbacks_list)
             model_train.save_weights("model.h5")
 
@@ -493,4 +493,6 @@ def bayes_opt():
 
 
 if __name__ == "__main__":
-    bayes_opt()
+    # bayes_opt()
+    sc = SoundClassifier()
+    sc.train_tf_records()
