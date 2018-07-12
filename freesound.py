@@ -85,7 +85,7 @@ class SoundClassifier(object):
         x = keras.layers.MaxPool2D()(x)
 
         x = keras.layers.Flatten()(x)
-        x = keras.layers.Dense(64)(x)
+        x = keras.layers.Dense(64, dtype=tf.float16)(x)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
         out = keras.layers.Dense(nclass, activation=keras.softmax)(x)
