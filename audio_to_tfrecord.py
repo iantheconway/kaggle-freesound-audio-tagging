@@ -19,8 +19,8 @@ def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
 
-def create_records(data_dir, id_list, labels, use_mfcc=True, n_mfcc=80):
-    sampling_rate = 24000
+def create_records(data_dir, id_list, labels, use_mfcc=True, n_mfcc=42):
+    sampling_rate = 44100
     n_files = len(id_list)
     split = int(n_files * .8)
     input_length = sampling_rate * 2
@@ -28,16 +28,19 @@ def create_records(data_dir, id_list, labels, use_mfcc=True, n_mfcc=80):
     labels_train = labels[:split]
     ids_test = id_list[split:]
     labels_test = labels[split:]
+    mean = None
+    std = None
     for mode in ["train", "eval"]:
+
         if mode == "train":
             id_list = ids_train
             labels = labels_train
         else:
             id_list = ids_test
             labels = labels_test
-        tfrecords_filename = 'audio_{}.tfrecords'.format(mode)
-        writer = tf.python_io.TFRecordWriter(tfrecords_filename)
+        X = np.empty(shape=(len(labels), n_mfcc * (1 + int(np.floor(sampling_rate * 2 / 512)))))
         for i, ID in enumerate(id_list):
+
             if i % 100 == 0:
                 print "{} {}".format(i, ID)
             file_path = data_dir + ID
@@ -66,14 +69,24 @@ def create_records(data_dir, id_list, labels, use_mfcc=True, n_mfcc=80):
                 data = np.expand_dims(data, axis=-1)
             else:
                 data = audio_norm(data)[:, np.newaxis]
+            data = data.flatten()
+            X[i, :] = data
+        if mode == "train":
+            mean = np.mean(X)
+            std = np.std(X)
+        X = (X - mean) / std
+        tfrecords_filename = 'audio_42_mfcc_norm_{}.tfrecords'.format(mode)
+        writer = tf.python_io.TFRecordWriter(tfrecords_filename)
+        for i, ID in enumerate(id_list):
+            if i % 100 == 0:
+                print "writing {} {} to file".format(i, ID)
             label = labels[i]
             label = _int64_feature(label)
-            data = data.flatten()
             example = tf.train.Example(features=tf.train.Features(feature={
                 'n_mfcc': _int64_feature(n_mfcc),
-                'features': _bytes_feature(data.tostring()),
+                'features': _bytes_feature(X[i, :].tostring()),
+                'filename': _bytes_feature(ID),
                 'label': label}))
-
             writer.write(example.SerializeToString())
 
         writer.close()
