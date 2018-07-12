@@ -19,7 +19,7 @@ def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
 
-def create_records(data_dir, id_list, labels, use_mfcc=True, n_mfcc=42):
+def create_records(data_dir, id_list, labels, use_mfcc=True, n_mfcc=40):
     sampling_rate = 44100
     n_files = len(id_list)
     split = int(n_files * .9)
@@ -75,7 +75,7 @@ def create_records(data_dir, id_list, labels, use_mfcc=True, n_mfcc=42):
             mean = np.mean(X)
             std = np.std(X)
         X = (X - mean) / std
-        tfrecords_filename = 'audio_42_mfcc_norm_{}.tfrecords'.format(mode)
+        tfrecords_filename = 'audio_{}_mfcc_norm_{}.tfrecords'.format(n_mfcc, mode)
         writer = tf.python_io.TFRecordWriter(tfrecords_filename)
         for i, ID in enumerate(id_list):
             if i % 100 == 0:

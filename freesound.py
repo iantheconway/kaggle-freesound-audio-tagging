@@ -21,7 +21,7 @@ np.random.seed(1001)
 
 class SoundClassifier(object):
     def __init__(self):
-        self.batch_size = 128
+        self.batch_size = 64
         self.dropout_prob = 0.1
         self.learning_rate = 0.001
         self.layer_group_1_kernel = 9
@@ -162,7 +162,7 @@ class SoundClassifier(object):
         parsed = tf.parse_single_example(record, keys_to_features)
         features = tf.decode_raw(parsed["features"], tf.float64)
         features = tf.cast(features, tf.float32)
-        features = tf.reshape(features, (42, 1 + int(np.floor(44100 * 2 / 512)), 1))
+        features = tf.reshape(features, (40, 1 + int(np.floor(44100 * 2 / 512)), 1))
         return features
 
     def fn_parser(self, record):
@@ -183,7 +183,7 @@ class SoundClassifier(object):
         parsed = tf.parse_single_example(record, keys_to_features)
         features = tf.decode_raw(parsed["features"], tf.uint8)
         features = tf.cast(features, tf.float32)
-        features = tf.reshape(features, (42, 1 + int(np.floor(44100 * 2 / 512)), 1))
+        features = tf.reshape(features, (40, 1 + int(np.floor(44100 * 2 / 512)), 1))
         label = tf.decode_raw(parsed["label"], tf.float32)
         return features, label
 
@@ -211,12 +211,13 @@ class SoundClassifier(object):
         test.set_index("fname", inplace=True)
         train["label_idx"] = train.label.apply(lambda x: label_idx[x])
 
-        train_set_size = int(len(train["label_idx"]) * .8)
-        test_set_size = int(len(train["label_idx"]) * .2)
+        train_set_size = int(len(train["label_idx"]) * .9)
+        test_set_size = int(len(train["label_idx"]) * .1)
 
-        train_dataset = tf.data.TFRecordDataset(filenames=["./audio_42_mfcc_norm_train.tfrecords"])
+        train_dataset = tf.data.TFRecordDataset(filenames=["./audio_40_mfcc_norm_train.tfrecords"])
         # Note: repeat before shuffle results in sampling with replacement
-        train_dataset = train_dataset.repeat().shuffle(train_set_size, seed=42)
+        # Also, not seeding the shuffle appears to cause the two iterators to fall out of synch.
+        train_dataset = train_dataset.shuffle(train_set_size, seed=42).repeat()
 
         train_x = train_dataset.map(self.feature_parser)
         x_it = train_x.batch(self.batch_size).make_one_shot_iterator()
@@ -227,7 +228,7 @@ class SoundClassifier(object):
         opt = optimizers.Adam(self.learning_rate)
         model_train.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
                             target_tensors=[y_it.get_next()])
-        test_dataset = tf.data.TFRecordDataset(filenames=["./audio_42_mfcc_norm_eval.tfrecords"]).repeat()
+        test_dataset = tf.data.TFRecordDataset(filenames=["./audio_40_mfcc_norm_eval.tfrecords"]).repeat()
         test_x = test_dataset.map(self.feature_parser)
         x_it = test_x.batch(self.batch_size).make_one_shot_iterator()
 
