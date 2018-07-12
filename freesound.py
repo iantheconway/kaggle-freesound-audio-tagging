@@ -161,7 +161,7 @@ class SoundClassifier(object):
         }
         parsed = tf.parse_single_example(record, keys_to_features)
         features = tf.decode_raw(parsed["features"], tf.float64)
-        features = tf.cast(features, tf.float32)
+        features = tf.cast(features, tf.float64)
         features = tf.reshape(features, (40, 1 + int(np.floor(44100 * 2 / 512)), 1))
         return features
 
