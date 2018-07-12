@@ -23,7 +23,7 @@ class SoundClassifier(object):
     def __init__(self):
         self.batch_size = 64
         self.dropout_prob = 0.1
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.001
         self.layer_group_1_kernel = 9
         self.layer_group_1_n_convs = 16
         self.layer_group_1_max_pool = 16
