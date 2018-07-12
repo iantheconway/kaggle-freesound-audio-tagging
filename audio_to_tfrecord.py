@@ -22,7 +22,7 @@ def _int64_feature(value):
 def create_records(data_dir, id_list, labels, use_mfcc=True, n_mfcc=42):
     sampling_rate = 44100
     n_files = len(id_list)
-    split = int(n_files * .8)
+    split = int(n_files * .9)
     input_length = sampling_rate * 2
     ids_train = id_list[:split]
     labels_train = labels[:split]
