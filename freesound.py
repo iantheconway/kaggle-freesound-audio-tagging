@@ -64,22 +64,22 @@ class SoundClassifier(object):
         else:
             nclass = 41
             inp = keras.layers.Input(tensor=input_tensor)
-        x = keras.layers.Convolution2D(32, (4, 10), padding="same")(inp)
+        x = keras.layers.Convolution2D(32, (4, 10), padding="same", dtype=tf.float16)(inp)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
         x = keras.layers.MaxPool2D()(x)
 
-        x = keras.layers.Convolution2D(32, (4, 10), padding="same")(x)
+        x = keras.layers.Convolution2D(32, (4, 10), padding="same", dtype=tf.float16)(x)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
         x = keras.layers.MaxPool2D()(x)
 
-        x = keras.layers.Convolution2D(32, (4, 10), padding="same")(x)
+        x = keras.layers.Convolution2D(32, (4, 10), padding="same", dtype=tf.float16)(x)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
         x = keras.layers.MaxPool2D()(x)
 
-        x = keras.layers.Convolution2D(32, (4, 10), padding="same")(x)
+        x = keras.layers.Convolution2D(32, (4, 10), padding="same", dtype=tf.float16)(x)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
         x = keras.layers.MaxPool2D()(x)
