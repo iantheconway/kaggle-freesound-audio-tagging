@@ -212,23 +212,29 @@ class SoundClassifier(object):
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
         x = keras.layers.MaxPool2D()(x)
+        x = keras.layers.Dropout(rate=self.dropout_prob)(x)
 
         x = keras.layers.Convolution2D(self.layer_group_2_n_convs,
                                        (self.layer_group_2_kernel, self.layer_group_2_kernel), padding="same")(x)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
         x = keras.layers.MaxPool2D()(x)
+        x = keras.layers.Dropout(rate=self.dropout_prob)(x)
+
         x = keras.layers.Convolution2D(self.layer_group_3_n_convs,
                                        (self.layer_group_3_kernel, self.layer_group_3_kernel), padding="same")(x)
 
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
         x = keras.layers.MaxPool2D()(x)
+        x = keras.layers.Dropout(rate=self.dropout_prob)(x)
+
         x = keras.layers.Convolution2D(self.layer_group_4_n_convs,
                                        (self.layer_group_4_kernel, self.layer_group_4_kernel), padding="same")(x)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
         x = keras.layers.MaxPool2D()(x)
+        x = keras.layers.Dropout(rate=self.dropout_prob)(x)
 
         x = keras.layers.Flatten()(x)
         x = keras.layers.Dense(self.dense_1_n_hidden)(x)
@@ -395,7 +401,7 @@ class SoundClassifier(object):
         train_set_size = int(len(train["label_idx"]) * .8)
         test_set_size = int(len(train["label_idx"]) * .2)
 
-        train_dataset = tf.data.TFRecordDataset(filenames=["./audio_train.tfrecords"])
+        train_dataset = tf.data.TFRecordDataset(filenames=["./audio_42_mfcc_train.tfrecords"])
         train_dataset = train_dataset.shuffle(train_set_size, seed=42).repeat()
 
         train_x = train_dataset.map(self.feature_parser)
@@ -408,7 +414,7 @@ class SoundClassifier(object):
         model_train.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
                             target_tensors=[y_it.get_next()])
 
-        test_dataset = tf.data.TFRecordDataset(filenames=["./audio_eval.tfrecords"]).repeat()
+        test_dataset = tf.data.TFRecordDataset(filenames=["./audio_42_mfcc_eval.tfrecords"]).repeat()
         test_x = test_dataset.map(self.feature_parser)
         x_it = test_x.batch(self.batch_size).make_one_shot_iterator()
 
@@ -430,7 +436,6 @@ class SoundClassifier(object):
             print "validation accuracy: {}".format(accuracy)
             if accuracy > self.best_accuracy:
                 self.best_accuracy = accuracy
-
 
 
 def gpyopt_helper(x):
@@ -480,7 +485,7 @@ def bayes_opt():
                    {'name': 'layer_group_4_n_convs', 'type': 'discrete', 'domain': range(8, 512)},
                    {'name': 'dense_1_n_hidden', 'type': 'discrete', 'domain': range(64, 1024)},
                    {'name': 'dropout_prob', 'type': 'continuous', 'domain': (0.05, 0.75)},
-                   {'name': 'learning_rate', 'type': 'continuous', 'domain': (0.000001, 0.01)},
+                   {'name': 'learning_rate', 'type': 'continuous', 'domain': (0.000001, 0.001)},
                    ]
     myProblem = GPyOpt.methods.BayesianOptimization(gpyopt_helper, mfcc_bounds)
     myProblem.run_optimization(100)
