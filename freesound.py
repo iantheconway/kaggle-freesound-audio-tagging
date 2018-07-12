@@ -402,7 +402,7 @@ class SoundClassifier(object):
         test_set_size = int(len(train["label_idx"]) * .2)
 
         train_dataset = tf.data.TFRecordDataset(filenames=["./audio_42_mfcc_train.tfrecords"])
-        train_dataset = train_dataset.shuffle(train_set_size).repeat()
+        train_dataset = train_dataset.repeat().shuffle(train_set_size, seed=42)
 
         train_x = train_dataset.map(self.feature_parser)
         x_it = train_x.batch(self.batch_size).make_one_shot_iterator()
