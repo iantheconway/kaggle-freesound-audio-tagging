@@ -207,37 +207,28 @@ class SoundClassifier(object):
         else:
             nclass = 41
             inp = keras.layers.Input(tensor=input_tensor)
-        x = keras.layers.Convolution2D(self.layer_group_1_n_convs,
-                                       (self.layer_group_1_kernel, self.layer_group_1_kernel), padding="same")(inp)
+        x = keras.layers.Convolution2D(32, (4, 10), padding="same")(inp)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
         x = keras.layers.MaxPool2D()(x)
-        x = keras.layers.Dropout(rate=self.dropout_prob)(x)
 
-        x = keras.layers.Convolution2D(self.layer_group_2_n_convs,
-                                       (self.layer_group_2_kernel, self.layer_group_2_kernel), padding="same")(x)
+        x = keras.layers.Convolution2D(32, (4, 10), padding="same")(x)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
         x = keras.layers.MaxPool2D()(x)
-        x = keras.layers.Dropout(rate=self.dropout_prob)(x)
 
-        x = keras.layers.Convolution2D(self.layer_group_3_n_convs,
-                                       (self.layer_group_3_kernel, self.layer_group_3_kernel), padding="same")(x)
-
+        x = keras.layers.Convolution2D(32, (4, 10), padding="same")(x)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
         x = keras.layers.MaxPool2D()(x)
-        x = keras.layers.Dropout(rate=self.dropout_prob)(x)
 
-        x = keras.layers.Convolution2D(self.layer_group_4_n_convs,
-                                       (self.layer_group_4_kernel, self.layer_group_4_kernel), padding="same")(x)
+        x = keras.layers.Convolution2D(32, (4, 10), padding="same")(x)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
         x = keras.layers.MaxPool2D()(x)
-        x = keras.layers.Dropout(rate=self.dropout_prob)(x)
 
         x = keras.layers.Flatten()(x)
-        x = keras.layers.Dense(self.dense_1_n_hidden)(x)
+        x = keras.layers.Dense(64)(x)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
         out = keras.layers.Dense(nclass, activation=softmax)(x)
@@ -426,7 +417,7 @@ class SoundClassifier(object):
         model_test.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
                            target_tensors=[y_it.get_next()])
         # TODO: Shuffle after each epoch
-        for i in range(50):
+        for i in range(100):
             print "cycle {}".format(i)
             model_train.fit(steps_per_epoch=train_set_size/self.batch_size, callbacks=callbacks_list)
             model_train.save_weights("model.h5")
