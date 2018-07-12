@@ -349,7 +349,7 @@ class SoundClassifier(object):
         parsed = tf.parse_single_example(record, keys_to_features)
         features = tf.decode_raw(parsed["features"], tf.float64)
         features = tf.cast(features, tf.float32)
-        features = tf.reshape(features, (80, 1 + int(np.floor(24000 * 2 / 512)), 1))
+        features = tf.reshape(features, (42, 1 + int(np.floor(24000 * 2 / 512)), 1))
         return features
 
     def fn_parser(self, record):
@@ -370,7 +370,7 @@ class SoundClassifier(object):
         parsed = tf.parse_single_example(record, keys_to_features)
         features = tf.decode_raw(parsed["features"], tf.uint8)
         features = tf.cast(features, tf.float32)
-        features = tf.reshape(features, (80, 1 + int(np.floor(24000 * 2 / 512)), 1))
+        features = tf.reshape(features, (42, 1 + int(np.floor(24000 * 2 / 512)), 1))
         label = tf.decode_raw(parsed["label"], tf.float32)
         return features, label
 
