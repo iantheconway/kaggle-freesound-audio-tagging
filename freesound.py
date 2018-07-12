@@ -13,8 +13,6 @@ import numpy as np
 from tensorflow import keras
 import GPyOpt
 from sklearn.cross_validation import StratifiedKFold
-from tensorflow.keras import losses, models, optimizers
-from tensorflow.keras.activations import relu, softmax
 import tensorflow as tf
 
 np.random.seed(1001)
@@ -90,12 +88,12 @@ class SoundClassifier(object):
         x = keras.layers.Dense(64)(x)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
-        out = keras.layers.Dense(nclass, activation=softmax)(x)
+        out = keras.layers.Dense(nclass, activation=keras.softmax)(x)
 
-        model = models.Model(inputs=inp, outputs=out)
+        model = keras.models.Model(inputs=inp, outputs=out)
         if compile_model:
-            opt = optimizers.Adam(config.learning_rate)
-            model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
+            opt = keras.optimizers.Adam(config.learning_rate)
+            model.compile(optimizer=opt, loss=keras.losses.categorical_crossentropy, metrics=['acc'])
         return model
 
     def get_2d_conv_model(self, config=None, input_tensor=None, compile_model=False):
@@ -138,12 +136,12 @@ class SoundClassifier(object):
         x = keras.layers.Dense(self.dense_1_n_hidden)(x)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Activation("relu")(x)
-        out = keras.layers.Dense(nclass, activation=softmax)(x)
+        out = keras.layers.Dense(nclass, activation=keras.softmax)(x)
 
-        model = models.Model(inputs=inp, outputs=out)
+        model = keras.models.Model(inputs=inp, outputs=out)
         if compile_model:
-            opt = optimizers.Adam(config.learning_rate)
-            model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
+            opt = keras.optimizers.Adam(config.learning_rate)
+            model.compile(optimizer=opt, loss=keras.losses.categorical_crossentropy, metrics=['acc'])
         return model
 
     def label_parser(self, record):
@@ -225,8 +223,8 @@ class SoundClassifier(object):
         train_y = train_dataset.map(self.label_parser)
         y_it = train_y.batch(self.batch_size).make_one_shot_iterator()
         model_train = self.get_2d_conv_model_default(input_tensor=x_it.get_next(), compile_model=False)
-        opt = optimizers.Adam(self.learning_rate)
-        model_train.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
+        opt = keras.optimizers.Adam(self.learning_rate)
+        model_train.compile(optimizer=opt, loss=keras.losses.categorical_crossentropy, metrics=['acc'],
                             target_tensors=[y_it.get_next()])
         test_dataset = tf.data.TFRecordDataset(filenames=["./audio_40_mfcc_norm_eval.tfrecords"]).repeat()
         test_x = test_dataset.map(self.feature_parser)
@@ -236,8 +234,8 @@ class SoundClassifier(object):
         y_it = test_y.batch(self.batch_size).make_one_shot_iterator()
 
         model_test = self.get_2d_conv_model_default(input_tensor=x_it.get_next(), compile_model=False)
-        opt = optimizers.Adam(self.learning_rate)
-        model_test.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
+        opt = keras.optimizers.Adam(self.learning_rate)
+        model_test.compile(optimizer=opt, loss=keras.losses.categorical_crossentropy, metrics=['acc'],
                            target_tensors=[y_it.get_next()])
         # TODO: Shuffle after each epoch
         for i in range(100):
