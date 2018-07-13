@@ -250,7 +250,7 @@ class SoundClassifier(object):
             print "validation accuracy: {}".format(accuracy)
             if accuracy > self.best_accuracy:
                 self.best_accuracy = accuracy
-            predictions = model_test.predict(steps=test_set_size / self.batch_size)
+            predictions = model_test.predict_generator(x_it.get_next(), steps=test_set_size / self.batch_size)
             ground_truth = train["label_idx"][train_set_size:]
             print ground_truth[:5]
             print predictions[:5]
