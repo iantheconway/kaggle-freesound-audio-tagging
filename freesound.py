@@ -431,9 +431,9 @@ class SoundClassifier(object):
             np.save(PREDICTION_FOLDER + "/test_predictions_%d.npy" % i, predictions)
 
             # Make a submission file
-            top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]]
-            ground_truth = np.stack([y_val, y_val, y_val])
-            map3 = mapk(ground_truth, top_3)
+            top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]].T
+            print top_3.shape
+            map3 = mapk(list(y_val), list(top_3))
             print "MAP3: {}".format(map3)
             predicted_labels = [' '.join(list(x)) for x in top_3]
             test['label'] = predicted_labels
