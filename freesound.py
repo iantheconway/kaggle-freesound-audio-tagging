@@ -111,7 +111,7 @@ class SoundClassifier(object):
     def __init__(self):
         self.batch_size = 64
         self.dropout_prob = 0.1
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.001
         self.layer_group_1_kernel = 9
         self.layer_group_1_n_convs = 16
         self.layer_group_1_max_pool = 16
@@ -440,8 +440,12 @@ class SoundClassifier(object):
             test[['label']].to_csv(PREDICTION_FOLDER + "/predictions_%d.csv" % i)
 
             predictions = model.predict(X_val, batch_size=64, verbose=1)
+            print "predictions[0] {}".format(predictions[0])
             map3_pred = np.argsort(-predictions, axis=1)[:, :3].T.tolist()
-            map3 = mapk(np.argmax(y_val, axis=1).flatten().reshape(-1, 1).tolist(), map3_pred)
+            map3_labels = np.argmax(y_val, axis=1).flatten().reshape(-1, 1).tolist()
+            print np.array(map3_pred).shape
+            print np.array(map3_labels).shape
+            map3 = mapk(map3_labels, map3_pred)
             print "MAP3: {}".format(map3)
 
 
