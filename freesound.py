@@ -24,6 +24,7 @@ import tensorflow as tf
 
 np.random.seed(1001)
 
+
 class Config(object):
     def __init__(self,
                  sampling_rate=16000, audio_duration=2, n_classes=41,
@@ -40,7 +41,7 @@ class Config(object):
 
         self.audio_length = self.sampling_rate * self.audio_duration
         if self.use_mfcc:
-            self.dim = (self.n_mfcc, 1 + int(np.floor(self.audio_length/512)), 1)
+            self.dim = (self.n_mfcc, 1 + int(np.floor(self.audio_length / 512)), 1)
         else:
             self.dim = (self.audio_length, 1)
 
@@ -66,21 +67,22 @@ def apk(actual, predicted, k=10):
     score : double
             The average precision at k over the input lists
     """
-    if len(predicted)>k:
+    if len(predicted) > k:
         predicted = predicted[:k]
 
     score = 0.0
     num_hits = 0.0
 
-    for i,p in enumerate(predicted):
+    for i, p in enumerate(predicted):
         if p in actual and p not in predicted[:i]:
             num_hits += 1.0
-            score += num_hits / (i+1.0)
+            score += num_hits / (i + 1.0)
 
     if not actual:
         return 0.0
 
     return score / min(len(actual), k)
+
 
 def mapk(actual, predicted, k=10):
     """
@@ -102,7 +104,7 @@ def mapk(actual, predicted, k=10):
     score : double
             The mean average precision at k over the input lists
     """
-    return np.mean([apk(a,p,k) for a,p in zip(actual, predicted)])
+    return np.mean([apk(a, p, k) for a, p in zip(actual, predicted)])
 
 
 class SoundClassifier(object):
@@ -327,7 +329,7 @@ class SoundClassifier(object):
         # TODO: Shuffle after each epoch
         for i in range(max_epochs):
             print "cycle {}".format(i)
-            model_train.fit(steps_per_epoch=train_set_size/self.batch_size, callbacks=callbacks_list)
+            model_train.fit(steps_per_epoch=train_set_size / self.batch_size, callbacks=callbacks_list)
             # model_train.fit(steps_per_epoch=1, callbacks=callbacks_list)
             model_train.save_weights("model.h5")
 
@@ -411,7 +413,8 @@ class SoundClassifier(object):
         for i, (train_split, val_split) in enumerate(skf):
             keras.backend.clear_session()
             X, y, X_val, y_val = X_train[train_split], y_train[train_split], X_train[val_split], y_train[val_split]
-            checkpoint = keras.callbacks.ModelCheckpoint('best_%d.h5' % i, monitor='val_loss', verbose=1, save_best_only=True)
+            checkpoint = keras.callbacks.ModelCheckpoint('best_%d.h5' % i, monitor='val_loss', verbose=1,
+                                                         save_best_only=True)
             early = keras.callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=5)
             tb = keras.callbacks.TensorBoard(log_dir='./logs/' + PREDICTION_FOLDER + '/fold_%i' % i, write_graph=True)
             callbacks_list = [checkpoint, early, tb]
@@ -432,17 +435,15 @@ class SoundClassifier(object):
 
             # Make a submission file
             top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]]
-            map3_pred = list(np.argsort(-predictions, axis=1)[:, :3].T)
+            map3_pred = list(np.argsort(-predictions, axis=1)[:, :3])
             print np.array(map3_pred).shape
             print y_val[:10]
             print np.array(map3_pred)[0, :10]
-            map3 = mapk(list(np.argmax(y_val, axis=1)), map3_pred)
+            map3 = mapk(list(np.argmax(y_val, axis=1).flatten()), map3_pred)
             print "MAP3: {}".format(map3)
             predicted_labels = [' '.join(list(x)) for x in top_3]
             test['label'] = predicted_labels
             test[['label']].to_csv(PREDICTION_FOLDER + "/predictions_%d.csv" % i)
-
-
 
 
 def gpyopt_helper(x):
