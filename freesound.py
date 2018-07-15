@@ -427,11 +427,14 @@ class SoundClassifier(object):
             np.save(PREDICTION_FOLDER + "/train_predictions_%d.npy" % i, predictions)
 
             # Save test predictions
-            predictions = model.predict(X_test, batch_size=1, verbose=1)
+            predictions = model.predict(X_test, batch_size=64, verbose=1)
             np.save(PREDICTION_FOLDER + "/test_predictions_%d.npy" % i, predictions)
 
             # Make a submission file
             top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]]
+            ground_truth = np.stack([y_val, y_val, y_val])
+            map3 = mapk(ground_truth, top_3)
+            print "MAP3: {}".format(map3)
             predicted_labels = [' '.join(list(x)) for x in top_3]
             test['label'] = predicted_labels
             test[['label']].to_csv(PREDICTION_FOLDER + "/predictions_%d.csv" % i)
