@@ -441,7 +441,7 @@ class SoundClassifier(object):
 
             predictions = model.predict(X_val, batch_size=64, verbose=1)
             print "predictions[0] {}".format(predictions[0])
-            map3_pred = np.argsort(-predictions, axis=1)[:, :3].T.tolist()
+            map3_pred = np.reshape(np.argsort(-predictions, axis=1)[:, :3], (3, -1)).tolist()
             map3_labels = np.argmax(y_val, axis=1).flatten().reshape(-1, 1).tolist()
             print np.array(map3_pred).shape
             print np.array(map3_labels).shape
