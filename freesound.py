@@ -347,8 +347,8 @@ class SoundClassifier(object):
             if accuracy > self.best_accuracy:
                 self.best_accuracy = accuracy
 
-    def prepare_data(self, df, config, data_dir):
-        if not os.path.exists("mfcc.pickle"):
+    def prepare_data(self, df, config, data_dir, pickle_name):
+        if not os.path.exists(pickle_name):
             X = np.empty(shape=(df.shape[0], config.dim[0], config.dim[1], 1))
             input_length = config.audio_length
             for i, fname in enumerate(df.index):
@@ -373,11 +373,11 @@ class SoundClassifier(object):
                 data = np.expand_dims(data, axis=-1)
                 X[i,] = data
             x = {"x": X}
-            with open("mfcc.pickle", 'wb') as handle:
+            with open(pickle_name, 'wb') as handle:
                 pickle.dump(x, handle)
             return X
         else:
-            with open("mfcc.pickle", 'rb') as handle:
+            with open(pickle_name, 'rb') as handle:
                 X = pickle.load(handle)["x"]
             return X
 
@@ -391,8 +391,8 @@ class SoundClassifier(object):
         train["label_idx"] = train.label.apply(lambda x: label_idx[x])
         config = Config(sampling_rate=44100, audio_duration=2, n_folds=10,
                         learning_rate=0.001, use_mfcc=True, n_mfcc=40)
-        X_train = self.prepare_data(train, config, './audio_train/')
-        X_test = self.prepare_data(test, config, './audio_test/')
+        X_train = self.prepare_data(train, config, './audio_train/', "mfcc_train.pickle")
+        X_test = self.prepare_data(test, config, './audio_test/', "mfcc_test.pickle")
         y_train = to_categorical(train.label_idx, num_classes=config.n_classes)
 
         mean = np.mean(X_train, axis=0)
