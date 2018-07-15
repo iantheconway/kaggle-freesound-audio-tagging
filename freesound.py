@@ -411,6 +411,9 @@ class SoundClassifier(object):
 
         skf = StratifiedKFold(train.label_idx, n_folds=config.n_folds)
         for i, (train_split, val_split) in enumerate(skf):
+            print train_split
+            print val_split
+            exit()
             keras.backend.clear_session()
             X, y, X_val, y_val = X_train[train_split], y_train[train_split], X_train[val_split], y_train[val_split]
             checkpoint = keras.callbacks.ModelCheckpoint('best_%d.h5' % i, monitor='val_loss', verbose=1,
@@ -441,7 +444,7 @@ class SoundClassifier(object):
 
             predictions = model.predict(X_val, batch_size=64, verbose=1)
             print "predictions[0] {}".format(predictions[0])
-            map3_pred = np.reshape(np.argsort(-predictions, axis=1)[:, :3], (3, -1)).tolist()
+            map3_pred = np.argsort(-predictions, axis=1)[:, :3].reshape((3, -1)).tolist()
             map3_labels = np.argmax(y_val, axis=1).flatten().reshape(-1, 1).tolist()
             print np.array(map3_pred).shape
             print np.array(map3_labels).shape
