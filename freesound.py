@@ -12,6 +12,7 @@ import librosa
 import numpy as np
 import keras
 import GPyOpt
+import pickle
 from sklearn.cross_validation import StratifiedKFold
 from sklearn.metrics import precision_score
 from sklearn.metrics import confusion_matrix
@@ -347,30 +348,34 @@ class SoundClassifier(object):
                 self.best_accuracy = accuracy
 
     def prepare_data(self, df, config, data_dir):
-        X = np.empty(shape=(df.shape[0], config.dim[0], config.dim[1], 1))
-        input_length = config.audio_length
-        for i, fname in enumerate(df.index):
-            print(fname)
-            file_path = data_dir + fname
-            data, _ = librosa.core.load(file_path, sr=config.sampling_rate, res_type="kaiser_fast")
+        if not os.path.exists("mfcc.pkl"):
+            X = np.empty(shape=(df.shape[0], config.dim[0], config.dim[1], 1))
+            input_length = config.audio_length
+            for i, fname in enumerate(df.index):
+                print(fname)
+                file_path = data_dir + fname
+                data, _ = librosa.core.load(file_path, sr=config.sampling_rate, res_type="kaiser_fast")
 
-            # Random offset / Padding
-            if len(data) > input_length:
-                max_offset = len(data) - input_length
-                offset = np.random.randint(max_offset)
-                data = data[offset:(input_length + offset)]
-            else:
-                if input_length > len(data):
-                    max_offset = input_length - len(data)
+                # Random offset / Padding
+                if len(data) > input_length:
+                    max_offset = len(data) - input_length
                     offset = np.random.randint(max_offset)
+                    data = data[offset:(input_length + offset)]
                 else:
-                    offset = 0
-                data = np.pad(data, (offset, input_length - len(data) - offset), "constant")
+                    if input_length > len(data):
+                        max_offset = input_length - len(data)
+                        offset = np.random.randint(max_offset)
+                    else:
+                        offset = 0
+                    data = np.pad(data, (offset, input_length - len(data) - offset), "constant")
 
-            data = librosa.feature.mfcc(data, sr=config.sampling_rate, n_mfcc=config.n_mfcc)
-            data = np.expand_dims(data, axis=-1)
-            X[i,] = data
-        return X
+                data = librosa.feature.mfcc(data, sr=config.sampling_rate, n_mfcc=config.n_mfcc)
+                data = np.expand_dims(data, axis=-1)
+                X[i,] = data
+            pickle.dump(X, "mfcc.pkl")
+            return X
+        else:
+            return pickle.load("mfcc.pkl")
 
     def train(self):
         train = pd.read_csv("./train.csv")
@@ -400,7 +405,7 @@ class SoundClassifier(object):
 
         skf = StratifiedKFold(train.label_idx, n_folds=config.n_folds)
         for i, (train_split, val_split) in enumerate(skf):
-            keras.clear_session()
+            keras.backend.clear_session()
             X, y, X_val, y_val = X_train[train_split], y_train[train_split], X_train[val_split], y_train[val_split]
             checkpoint = keras.callbacks.ModelCheckpoint('best_%d.h5' % i, monitor='val_loss', verbose=1, save_best_only=True)
             early = keras.callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=5)
