@@ -77,7 +77,7 @@ def apk(actual, predicted, k=10):
             num_hits += 1.0
             score += num_hits / (i+1.0)
 
-    if not actual:
+    if not actual.any():
         return 0.0
 
     return score / min(len(actual), k)
