@@ -413,7 +413,7 @@ class SoundClassifier(object):
         final_val = train["label_idx"][final_val_split:]
         train = train[:final_val_split]
         skf = StratifiedKFold(train.label_idx, n_folds=config.n_folds)
-        final_predictions = np.ones((len(final_val, config.n_classes)))
+        final_predictions = np.ones((len(final_val), config.n_classes))
         for i, (train_split, val_split) in enumerate(skf):
             keras.backend.clear_session()
             X, y, X_val, y_val = X_train[train_split], y_train[train_split], X_train[val_split], y_train[val_split]
