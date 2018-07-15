@@ -436,7 +436,7 @@ class SoundClassifier(object):
             # Make a submission file
             top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]]
             map3_pred = np.argsort(-predictions, axis=1)[:, :3].tolist()
-            print np.array(map3_pred).shape
+            print y_val.shape
             print np.argmax(y_val, axis=1).flatten().tolist()[:10]
             print np.array(map3_pred)[0, :10]
             map3 = mapk(np.argmax(y_val, axis=1).flatten().tolist(), map3_pred)
