@@ -435,12 +435,14 @@ class SoundClassifier(object):
 
             # Make a submission file
             top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]]
-            map3_pred = np.argsort(-predictions, axis=1)[:, :3].T.tolist()
-            map3 = mapk(np.argmax(y_val, axis=1).flatten().reshape(-1, 1).tolist(), map3_pred)
-            print "MAP3: {}".format(map3)
             predicted_labels = [' '.join(list(x)) for x in top_3]
             test['label'] = predicted_labels
             test[['label']].to_csv(PREDICTION_FOLDER + "/predictions_%d.csv" % i)
+
+            predictions = model.predict(X_val, batch_size=64, verbose=1)
+            map3_pred = np.argsort(-predictions, axis=1)[:, :3].T.tolist()
+            map3 = mapk(np.argmax(y_val, axis=1).flatten().reshape(-1, 1).tolist(), map3_pred)
+            print "MAP3: {}".format(map3)
 
 
 def gpyopt_helper(x):
