@@ -440,15 +440,12 @@ class SoundClassifier(object):
             test[['label']].to_csv(PREDICTION_FOLDER + "/predictions_%d.csv" % i)
 
             predictions = model.predict(X_val, batch_size=64, verbose=1)
-            print "predictions[0] {}".format(predictions[0])
             map3_pred = np.argsort(-predictions, axis=1)[:, :3].reshape((3, -1)).tolist()
             map3_labels = np.argmax(y_val, axis=1).flatten().reshape(-1, 1).tolist()
-            print np.array(map3_pred).shape
-            print np.array(map3_labels).shape
-            print np.array(map3_pred)[: , :20]
-            print np.array(map3_labels)[:20, :]
             map3 = mapk(map3_labels, map3_pred)
             print "MAP3: {}".format(map3)
+            if map3 > self.best_accuracy:
+                self.best_accuracy = map3
 
 
 def gpyopt_helper(x):
@@ -507,6 +504,6 @@ def bayes_opt():
 
 
 if __name__ == "__main__":
-    # bayes_opt()
-    sc = SoundClassifier()
-    sc.train()
+    bayes_opt()
+    # sc = SoundClassifier()
+    # sc.train()
