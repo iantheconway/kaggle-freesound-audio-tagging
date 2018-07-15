@@ -13,11 +13,74 @@ import numpy as np
 import keras
 import GPyOpt
 from sklearn.cross_validation import StratifiedKFold
+from sklearn.metrics import precision_score
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
 from keras import losses, models, optimizers
 from keras.activations import relu, softmax
 import tensorflow as tf
 
 np.random.seed(1001)
+
+# Mean average percision code from:
+# https://github.com/benhamner/Metrics/blob/master/Python/ml_metrics/average_precision.py
+# thanks Wendy Kan!
+def apk(actual, predicted, k=10):
+    """
+    Computes the average precision at k.
+    This function computes the average prescision at k between two lists of
+    items.
+    Parameters
+    ----------
+    actual : list
+             A list of elements that are to be predicted (order doesn't matter)
+    predicted : list
+                A list of predicted elements (order does matter)
+    k : int, optional
+        The maximum number of predicted elements
+    Returns
+    -------
+    score : double
+            The average precision at k over the input lists
+    """
+    if len(predicted)>k:
+        predicted = predicted[:k]
+
+    score = 0.0
+    num_hits = 0.0
+
+    for i,p in enumerate(predicted):
+        if p in actual and p not in predicted[:i]:
+            num_hits += 1.0
+            score += num_hits / (i+1.0)
+
+    if not actual:
+        return 0.0
+
+    return score / min(len(actual), k)
+
+def mapk(actual, predicted, k=10):
+    """
+    Computes the mean average precision at k.
+    This function computes the mean average prescision at k between two lists
+    of lists of items.
+    Parameters
+    ----------
+    actual : list
+             A list of lists of elements that are to be predicted
+             (order doesn't matter in the lists)
+    predicted : list
+                A list of lists of predicted elements
+                (order matters in the lists)
+    k : int, optional
+        The maximum number of predicted elements
+    Returns
+    -------
+    score : double
+            The mean average precision at k over the input lists
+    """
+    return np.mean([apk(a,p,k) for a,p in zip(actual, predicted)])
+
 
 class SoundClassifier(object):
     def __init__(self):
@@ -59,12 +122,11 @@ class SoundClassifier(object):
             setattr(self, param, value)
             print "setting {} to {}".format(param, value)
 
-    def get_2d_conv_model_default(self, config=None, input_tensor=None, compile_model=False):
-        if config:
-            nclass = config.n_classes
-            inp = keras.layers.Input(shape=(config.dim[0], config.dim[1], 1))
+    def get_2d_conv_model_default(self, input_tensor=None, use_tensor=False, compile_model=False):
+        nclass = 41
+        if not use_tensor:
+            inp = keras.layers.Input(shape=(40, 1 + int(np.floor(44100 * 2 / 512)), 1))
         else:
-            nclass = 41
             inp = keras.layers.Input(tensor=input_tensor)
         x = keras.layers.Convolution2D(32, (4, 10), padding="same")(inp)
         x = keras.layers.BatchNormalization()(x)
@@ -94,16 +156,15 @@ class SoundClassifier(object):
 
         model = models.Model(inputs=inp, outputs=out)
         if compile_model:
-            opt = optimizers.Adam(config.learning_rate)
+            opt = optimizers.Adam(self.learning_rate)
             model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
         return model
 
-    def get_2d_conv_model(self, config=None, input_tensor=None, compile_model=False):
-        if config:
-            nclass = config.n_classes
-            inp = keras.layers.Input(shape=(config.dim[0], config.dim[1], 1))
+    def get_2d_conv_model(self, input_tensor=None, use_tensor=False, compile_model=False):
+        nclass = 41
+        if not use_tensor:
+            inp = keras.layers.Input(shape=(40, 1 + int(np.floor(44100 * 2 / 512)), 1))
         else:
-            nclass = 41
             inp = keras.layers.Input(tensor=input_tensor)
         x = keras.layers.Convolution2D(self.layer_group_1_n_convs,
                                        (self.layer_group_1_kernel, self.layer_group_1_kernel), padding="same")(inp)
@@ -142,7 +203,7 @@ class SoundClassifier(object):
 
         model = models.Model(inputs=inp, outputs=out)
         if compile_model:
-            opt = optimizers.Adam(config.learning_rate)
+            opt = optimizers.Adam(self.learning_rate)
             model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
         return model
 
@@ -170,7 +231,7 @@ class SoundClassifier(object):
             "filename": tf.FixedLenFeature([], tf.string)
         }
         parsed = tf.parse_single_example(record, keys_to_features)
-        #features = tf.decode_raw(parsed["features"], tf.string)
+        # features = tf.decode_raw(parsed["features"], tf.string)
         fn = tf.cast(parsed["filename"], tf.string)
         # features = tf.reshape(features, (80, 1 + int(np.floor(24000 * 2 / 512)), 1))
         return fn
@@ -188,6 +249,9 @@ class SoundClassifier(object):
         return features, label
 
     def train_tf_records(self, max_epochs=50):
+        """Training function which uses tfrecords file contianing MFCCs
+        input:
+            max_epochs: the number of training epochs to run"""
 
         PREDICTION_FOLDER = "predictions_1d_conv"
         if not os.path.exists(PREDICTION_FOLDER):
@@ -224,7 +288,7 @@ class SoundClassifier(object):
 
         train_y = train_dataset.map(self.label_parser)
         y_it = train_y.batch(self.batch_size).make_one_shot_iterator()
-        model_train = self.get_2d_conv_model_default(input_tensor=x_it.get_next(), compile_model=False)
+        model_train = self.get_2d_conv_model_default(input_tensor=x_it.get_next(), compile_model=False, use_tensor=True)
         opt = optimizers.Adam(self.learning_rate)
         model_train.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
                             target_tensors=[y_it.get_next()])
@@ -235,25 +299,30 @@ class SoundClassifier(object):
         test_y = test_dataset.map(self.label_parser)
         y_it = test_y.batch(self.batch_size).make_one_shot_iterator()
 
-        model_test = self.get_2d_conv_model_default(input_tensor=x_it.get_next(), compile_model=False)
+        model_test = self.get_2d_conv_model_default(compile_model=True)
         opt = optimizers.Adam(self.learning_rate)
-        model_test.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'],
-                           target_tensors=[y_it.get_next()])
         # TODO: Shuffle after each epoch
-        for i in range(100):
+        for i in range(max_epochs):
             print "cycle {}".format(i)
             model_train.fit(steps_per_epoch=train_set_size/self.batch_size, callbacks=callbacks_list)
+            # model_train.fit(steps_per_epoch=1, callbacks=callbacks_list)
             model_train.save_weights("model.h5")
 
             model_test.load_weights("model.h5")
-            accuracy = model_test.evaluate(steps=test_set_size/self.batch_size)[1]
+
+            predictions = []
+            for j in range(int(test_set_size / self.batch_size)):
+                x = np.array(keras.backend.get_session().run(x_it.get_next()))
+                prediction = model_test.predict(x)
+                predictions.append(np.argmax(prediction, axis=1))
+            predictions = np.array(predictions).flatten()
+            ground_truth = train["label_idx"][train_set_size:train_set_size + predictions.shape[0]]
+            print "precision {}".format(precision_score(ground_truth, predictions, average="macro"))
+            print confusion_matrix(ground_truth, predictions)
+            accuracy = accuracy_score(ground_truth, predictions)
             print "validation accuracy: {}".format(accuracy)
             if accuracy > self.best_accuracy:
                 self.best_accuracy = accuracy
-            predictions = model_test.predict_generator(x_it, steps=test_set_size / self.batch_size)
-            ground_truth = train["label_idx"][train_set_size:]
-            print ground_truth[:5]
-            print predictions[:5]
 
 
 def gpyopt_helper(x):
