@@ -422,7 +422,7 @@ class SoundClassifier(object):
             print("Fold: ", i)
             model = self.get_2d_conv_model_default(compile_model=True)
             history = model.fit(X, y, validation_data=(X_val, y_val), callbacks=callbacks_list,
-                                batch_size=64, epochs=1)
+                                batch_size=64, epochs=config.max_epochs)
             model.load_weights('best_%d.h5' % i)
 
             # Save train predictions
@@ -436,10 +436,6 @@ class SoundClassifier(object):
             # Make a submission file
             top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]]
             map3_pred = np.argsort(-predictions, axis=1)[:, :3].T.tolist()
-            print y_val.shape
-            print y_val[:10]
-            print np.argmax(y_val, axis=1).flatten().tolist()[:10]
-            print np.array(map3_pred)[:, :10]
             map3 = mapk(np.argmax(y_val, axis=1).flatten().reshape(-1, 1).tolist(), map3_pred)
             print "MAP3: {}".format(map3)
             predicted_labels = [' '.join(list(x)) for x in top_3]
