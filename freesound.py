@@ -427,7 +427,7 @@ class SoundClassifier(object):
             np.save(PREDICTION_FOLDER + "/train_predictions_%d.npy" % i, predictions)
 
             # Save test predictions
-            predictions = model.predict(X_test, batch_size=64, verbose=1)
+            predictions = model.predict(X_test, batch_size=1, verbose=1)
             np.save(PREDICTION_FOLDER + "/test_predictions_%d.npy" % i, predictions)
 
             # Make a submission file
