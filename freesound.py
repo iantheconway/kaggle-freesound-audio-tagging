@@ -488,4 +488,4 @@ def bayes_opt():
 if __name__ == "__main__":
     # bayes_opt()
     sc = SoundClassifier()
-    sc.train_tf_records()
+    sc.train()
