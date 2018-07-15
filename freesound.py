@@ -409,7 +409,11 @@ class SoundClassifier(object):
         if os.path.exists('logs/' + PREDICTION_FOLDER):
             shutil.rmtree('logs/' + PREDICTION_FOLDER)
 
+        final_val_split = int(len(train["label_idx"]) * .9)
+        final_val = train["label_idx"][final_val_split:]
+        train = train[:final_val_split]
         skf = StratifiedKFold(train.label_idx, n_folds=config.n_folds)
+        final_predictions = np.ones((config.n_classes, len(final_val)))
         for i, (train_split, val_split) in enumerate(skf):
             keras.backend.clear_session()
             X, y, X_val, y_val = X_train[train_split], y_train[train_split], X_train[val_split], y_train[val_split]
@@ -446,6 +450,24 @@ class SoundClassifier(object):
             print "MAP3: {}".format(map3)
             if map3 > self.best_accuracy:
                 self.best_accuracy = map3
+
+            predictions = model.predict(X_train[final_val_split:], batch_size=64, verbose=1)
+            final_predictions = np.multiply(final_predictions, predictions)
+            map3_pred = np.argsort(-predictions, axis=1)[:, :3].reshape((3, -1)).tolist()
+            map3_labels = final_val.reshape(-1, 1).tolist()
+            map3 = mapk(map3_labels, map3_pred)
+            print "Final Val MAP3: {}".format(map3)
+            if map3 > self.best_accuracy:
+                self.best_accuracy = map3
+
+        final_predictions = final_predictions ** (1/config.n_folds)
+        map3_pred = np.argsort(-predictions, axis=1)[:, :3].reshape((3, -1)).tolist()
+        map3_labels = final_val.reshape(-1, 1).tolist()
+        map3 = mapk(map3_labels, map3_pred)
+        print "Final Val All Folds MAP3: {}".format(map3)
+        if map3 > self.best_accuracy:
+            self.best_accuracy = map3
+
 
 
 def gpyopt_helper(x):
