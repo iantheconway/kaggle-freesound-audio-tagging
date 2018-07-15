@@ -454,7 +454,7 @@ class SoundClassifier(object):
             predictions = model.predict(X_train[final_val_split:], batch_size=64, verbose=1)
             final_predictions = np.multiply(final_predictions, predictions)
             map3_pred = np.argsort(-predictions, axis=1)[:, :3].reshape((3, -1)).tolist()
-            map3_labels = final_val.reshape(-1, 1).tolist()
+            map3_labels = np.array(final_val).reshape(-1, 1).tolist()
             map3 = mapk(map3_labels, map3_pred)
             print "Final Val MAP3: {}".format(map3)
             if map3 > self.best_accuracy:
