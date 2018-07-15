@@ -382,8 +382,8 @@ class SoundClassifier(object):
         train["label_idx"] = train.label.apply(lambda x: label_idx[x])
         config = Config(sampling_rate=44100, audio_duration=2, n_folds=10,
                         learning_rate=0.001, use_mfcc=True, n_mfcc=40)
-        X_train = self.prepare_data(train, config, '../input/freesound-audio-tagging/audio_train/')
-        X_test = self.prepare_data(test, config, '../input/freesound-audio-tagging/audio_test/')
+        X_train = self.prepare_data(train, config, './audio_train/')
+        X_test = self.prepare_data(test, config, './audio_test/')
         y_train = to_categorical(train.label_idx, num_classes=config.n_classes)
 
         mean = np.mean(X_train, axis=0)
