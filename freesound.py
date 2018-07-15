@@ -426,7 +426,7 @@ class SoundClassifier(object):
             print("Fold: ", i)
             model = self.get_2d_conv_model(compile_model=True)
             history = model.fit(X, y, validation_data=(X_val, y_val), callbacks=callbacks_list,
-                                batch_size=64, epochs=1)
+                                batch_size=64, epochs=config.max_epochs)
             model.load_weights('best_%d.h5' % i)
 
             # Save train predictions
