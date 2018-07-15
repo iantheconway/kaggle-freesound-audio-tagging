@@ -445,8 +445,8 @@ class SoundClassifier(object):
             map3_labels = np.argmax(y_val, axis=1).flatten().reshape(-1, 1).tolist()
             print np.array(map3_pred).shape
             print np.array(map3_labels).shape
-            print np.array(map3_pred)[: ,10]
-            print np.array(map3_labels)[:10, :]
+            print np.array(map3_pred)[: , :20]
+            print np.array(map3_labels)[:20, :]
             map3 = mapk(map3_labels, map3_pred)
             print "MAP3: {}".format(map3)
 
