@@ -409,11 +409,8 @@ class SoundClassifier(object):
         if os.path.exists('logs/' + PREDICTION_FOLDER):
             shutil.rmtree('logs/' + PREDICTION_FOLDER)
 
-        skf = StratifiedKFold(train.label_idx, n_folds=config.n_folds)
+        skf = StratifiedKFold(train.label_idx, n_folds=config.n_folds, shuffle=True)
         for i, (train_split, val_split) in enumerate(skf):
-            print train_split
-            print val_split
-            exit()
             keras.backend.clear_session()
             X, y, X_val, y_val = X_train[train_split], y_train[train_split], X_train[val_split], y_train[val_split]
             checkpoint = keras.callbacks.ModelCheckpoint('best_%d.h5' % i, monitor='val_loss', verbose=1,
