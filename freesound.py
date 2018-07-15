@@ -417,7 +417,7 @@ class SoundClassifier(object):
             callbacks_list = [checkpoint, early, tb]
             print("#" * 50)
             print("Fold: ", i)
-            model = self.get_2d_conv_model(config)
+            model = self.get_2d_conv_model_default(compile_model=True)
             history = model.fit(X, y, validation_data=(X_val, y_val), callbacks=callbacks_list,
                                 batch_size=64, epochs=config.max_epochs)
             model.load_weights('best_%d.h5' % i)
