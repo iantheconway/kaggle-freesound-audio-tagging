@@ -77,7 +77,7 @@ def apk(actual, predicted, k=10):
             num_hits += 1.0
             score += num_hits / (i+1.0)
 
-    if not actual.any():
+    if not actual:
         return 0.0
 
     return score / min(len(actual), k)
@@ -433,6 +433,8 @@ class SoundClassifier(object):
             # Make a submission file
             top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]].T
             print top_3.shape
+            print y_val[:10]
+            print top_3[0, :10]
             map3 = mapk(list(y_val), list(top_3))
             print "MAP3: {}".format(map3)
             predicted_labels = [' '.join(list(x)) for x in top_3]
