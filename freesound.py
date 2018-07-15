@@ -348,7 +348,7 @@ class SoundClassifier(object):
                 self.best_accuracy = accuracy
 
     def prepare_data(self, df, config, data_dir):
-        if not os.path.exists("mfcc.pkl"):
+        if not os.path.exists("mfcc.pickle"):
             X = np.empty(shape=(df.shape[0], config.dim[0], config.dim[1], 1))
             input_length = config.audio_length
             for i, fname in enumerate(df.index):
@@ -372,10 +372,14 @@ class SoundClassifier(object):
                 data = librosa.feature.mfcc(data, sr=config.sampling_rate, n_mfcc=config.n_mfcc)
                 data = np.expand_dims(data, axis=-1)
                 X[i,] = data
-            pickle.dump(X, "mfcc.pkl")
+            x = {"x": X}
+            with open("mfcc.pickle", 'wb') as handle:
+                pickle.dump(x, handle)
             return X
         else:
-            return pickle.load("mfcc.pkl")
+            with open("mfcc.pickle", 'rb') as handle:
+                X = pickle.load(handle)["x"]
+            return X
 
     def train(self):
         train = pd.read_csv("./train.csv")
