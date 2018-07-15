@@ -443,6 +443,7 @@ class SoundClassifier(object):
             test['label'] = predicted_labels
             test[['label']].to_csv(PREDICTION_FOLDER + "/predictions_%d.csv" % i)
 
+            # Calculate map3 on validation set
             predictions = model.predict(X_val, batch_size=64, verbose=1)
             map3_pred = np.argsort(-predictions, axis=1)[:, :3].reshape((3, -1)).tolist()
             map3_labels = np.argmax(y_val, axis=1).flatten().reshape(-1, 1).tolist()
@@ -451,6 +452,7 @@ class SoundClassifier(object):
             if map3 > self.best_accuracy:
                 self.best_accuracy = map3
 
+            # Calculate map3 on final validation set
             predictions = model.predict(X_train[final_val_split:], batch_size=64, verbose=1)
             final_predictions = np.multiply(final_predictions, predictions)
             map3_pred = np.argsort(-predictions, axis=1)[:, :3].reshape((3, -1)).tolist()
@@ -462,7 +464,7 @@ class SoundClassifier(object):
 
         final_predictions = final_predictions ** (1/config.n_folds)
         map3_pred = np.argsort(-final_predictions, axis=1)[:, :3].reshape((3, -1)).tolist()
-        map3_labels = final_val.reshape(-1, 1).tolist()
+        map3_labels = np.array(final_val).reshape(-1, 1).tolist()
         map3 = mapk(map3_labels, map3_pred)
         print "Final Val All Folds MAP3: {}".format(map3)
         if map3 > self.best_accuracy:
